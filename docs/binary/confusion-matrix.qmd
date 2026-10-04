@@ -1,0 +1,153 @@
+---
+title: "Confusion matrix and threshold metrics"
+description: "Evaluating yes/no decisions: accuracy, precision, recall and why the threshold matters."
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from modelperf.metrics import confusion_counts, threshold_metrics
+from modelperf.models import binary_predictions
+from modelperf.plots import plot_confusion_matrix, plot_score_distributions, plot_threshold_metrics, use_style
+
+use_style()
+b = binary_predictions()
+y = b["y"]
+prevalence = y.mean()
+
+m_half = threshold_metrics(y, b["GBM"], 0.5)
+c_half = confusion_counts(y, b["GBM"], 0.5)
+m_low = threshold_metrics(y, b["GBM"], 0.05)
+c_low = confusion_counts(y, b["GBM"], 0.05)
+```
+
+**Question answered:** if we turn the model's probabilities into yes/no
+decisions, how good are those decisions?
+
+## From probabilities to decisions
+
+Our models predict a *probability* of a claim. Many uses need a *decision*
+instead: inspect this policy or not, refer it to underwriting or not. The
+usual way to get one is to pick a **threshold** $t$ and predict
+
+$$
+\hat y = \begin{cases} 1 & \text{if } \hat p \ge t \\ 0 & \text{otherwise.} \end{cases}
+$$
+
+Every metric on this page evaluates **the model together with a threshold**.
+Change the threshold and all of them change.
+
+## The confusion matrix
+
+Comparing decisions with outcomes gives four kinds of cases:
+
+|  | Predicted 0 | Predicted 1 |
+|---|---|---|
+| **Actual 0** | true negative (TN) | false positive (FP), 'false alarm' |
+| **Actual 1** | false negative (FN), 'miss' | true positive (TP) |
+
+Here is the GBM on the `{python} f"{len(y):,}"` test policies at the
+conventional threshold of 0.5 and at a much lower threshold of 0.05:
+
+```{python}
+#| label: fig-confusion
+#| fig-cap: "Confusion matrices of the GBM at two thresholds. Color intensity is on a log scale."
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.8))
+plot_confusion_matrix(c_half, ax=axes[0], title="Threshold 0.5")
+plot_confusion_matrix(c_low, ax=axes[1], title="Threshold 0.05")
+fig.tight_layout()
+```
+
+At 0.5, the model flags just `{python} str(c_half["TP"] + c_half["FP"])`
+policies, and `{python} str(c_half["TP"])` of them had a claim. Its highest
+predicted probability is only `{python} f"{b['GBM'].max():.2f}"`: with a
+claim rate of `{python} f"{prevalence:.1%}"`, very few policies come anywhere
+near 50%. At 0.05, the model catches `{python} f"{c_low['TP']:,}"` of the
+`{python} f"{c_low['TP'] + c_low['FN']:,}"` policies with claims, at the
+cost of `{python} f"{c_low['FP']:,}"` false alarms.
+
+## Metrics derived from the confusion matrix
+
+| Metric | Formula | Question it answers |
+|---|---|---|
+| Accuracy | $\frac{TP + TN}{N}$ | What share of decisions is correct? |
+| Precision | $\frac{TP}{TP + FP}$ | Of the flagged policies, what share had a claim? |
+| Recall, true positive rate (TPR), sensitivity | $\frac{TP}{TP + FN}$ | Of the policies with a claim, what share did we flag? |
+| Specificity, true negative rate (TNR) | $\frac{TN}{TN + FP}$ | Of the policies without a claim, what share did we leave alone? |
+| False positive rate (FPR) | $\frac{FP}{FP + TN} = 1 - \text{TNR}$ | Of the policies without a claim, what share did we flag? |
+| F1 score | $2 \cdot \frac{\text{precision} \cdot \text{recall}}{\text{precision} + \text{recall}}$ | A single summary of precision and recall (their harmonic mean) |
+| Balanced accuracy | $\frac{\text{TPR} + \text{TNR}}{2}$ | Accuracy if both classes were equally common |
+
+Precision and recall look at the positive class from two sides: precision
+asks how *trustworthy* a flag is, recall how *complete* the flagging is.
+Raising the threshold usually increases precision and decreases recall.
+
+## The accuracy paradox
+
+```{python}
+#| label: tbl-accuracy-paradox
+#| tbl-cap: "Threshold metrics at the default threshold 0.5."
+metrics = ["accuracy", "precision", "recall (TPR)", "specificity (TNR)", "balanced accuracy"]
+pd.DataFrame({m: threshold_metrics(y, b[m], 0.5)[metrics] for m in ("Null", "GLM", "GBM")}).round(3)
+```
+
+All three models reach an accuracy of about `{python} f"{1 - prevalence:.1%}"`,
+including the Null model, which never predicts a claim. That number is
+simply the share of policies *without* a claim. Under class imbalance:
+
+- **Accuracy is dominated by the majority class.** 'Always predict 0' reaches
+  `{python} f"{1 - prevalence:.1%}"` without learning anything.
+- **Always compare with the Null model.** An accuracy only means something next
+  to the accuracy of predicting the majority class (here `{python} f"{1 - prevalence:.1%}"`).
+- **Balanced accuracy and recall expose the problem**: 0.5 and 0.0 say this
+  decision rule doesn't find any claims.
+
+The GBM is not useless, though. The problem is the threshold, not the model.
+
+## Choosing a threshold
+
+```{python}
+#| label: fig-threshold
+#| fig-cap: "Left: predicted claim probabilities of the GBM for policies without and with a claim. Right: threshold metrics of the GBM as the threshold moves."
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+plot_score_distributions(y, b["GBM"], ax=axes[0], threshold=0.05)
+plot_threshold_metrics(y, b["GBM"], ax=axes[1])
+fig.tight_layout()
+```
+
+The left panel shows why no threshold separates the classes cleanly. Policies
+with a claim get higher probabilities *on average*, but the two distributions
+overlap heavily. The right panel shows the resulting trade-off:
+
+- **Lowering the threshold** flags more policies. Recall rises and precision
+  falls.
+- **Accuracy keeps rising with the threshold**, because flagging fewer policies
+  means fewer false alarms among the large majority without claims. Maximizing
+  accuracy pushes towards 'never flag anything'.
+
+So which threshold is right? That depends on **what each kind of error costs**,
+not on the model. If a missed claim costs $c_{FN}$ and a false alarm costs
+$c_{FP}$, and the probabilities are calibrated, the cost-minimizing rule is to
+flag a policy when
+
+$$
+\hat p \ge \frac{c_{FP}}{c_{FP} + c_{FN}}.
+$$
+
+For example, if a review costs 50 EUR and catching a claim early saves
+950 EUR, the optimal threshold is $50 / (50 + 950) = 0.05$. Decision curves
+and calibration, covered in later pages, build on this idea.
+
+## Takeaways
+
+- Threshold metrics evaluate a **decision rule**, so always report the
+  threshold along with them.
+- Under class imbalance, **accuracy mostly measures the class balance**.
+  Compare with the Null model, and prefer recall, precision or balanced
+  accuracy.
+- The threshold should come from the **costs of errors**, not from the 0.5
+  default.
+- To judge the model independently of any one threshold, look at all
+  thresholds at once: that is the [ROC curve](roc-auc.qmd).

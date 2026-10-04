@@ -1,0 +1,41 @@
+project:
+  type: website
+  output-dir: _site
+  execute-dir: project
+
+# Pages re-execute only when their source changes; results live in _freeze/
+# (commit it, so the site can be rebuilt without re-running every page).
+execute:
+  freeze: auto
+  warning: false
+
+jupyter: python3
+
+website:
+  title: "Model Performance"
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - index.qmd
+      - section: "Foundations"
+        contents:
+          - docs/foundations/data-and-models.qmd
+      - section: "Binary outcomes"
+        contents:
+          - docs/binary/confusion-matrix.qmd
+          - docs/binary/roc-auc.qmd
+      - section: "Continuous outcomes"
+        contents:
+          - docs/continuous/error-metrics.qmd
+          - docs/continuous/deviance.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+    code-summary: "Code"
+    code-tools: true
+    fig-dpi: 144
+    df-print: kable

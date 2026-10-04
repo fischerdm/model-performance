@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Data and fitted models (re-created on demand)
+data/raw/
+artifacts/
+
+# Quarto
+/_site/
+/.quarto/
+*_files/
+**/*.quarto_ipynb
+
+# Editors / OS
+.DS_Store
+.ipynb_checkpoints/
+.vscode/

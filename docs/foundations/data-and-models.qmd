@@ -1,0 +1,138 @@
+---
+title: "Data and models"
+description: "The datasets, targets and models used in every example."
+---
+
+```{python}
+#| include: false
+import numpy as np
+import pandas as pd
+
+from modelperf.data import CLAIM_AMOUNT_CAP, FEATURES, housing_split, train_test
+from modelperf.models import binary_predictions, housing_predictions, pure_premium_predictions
+
+split = train_test()
+policies = pd.concat([split.train, split.test])
+n_policies = f"{len(policies):,}"
+n_test = f"{len(split.test):,}"
+claim_rate = f"{policies['HasClaim'].mean():.1%}"
+share_zero = f"{(policies['PurePremium'] == 0).mean():.1%}"
+```
+
+## French motor insurance (freMTPL2)
+
+The dataset comes from a French insurer and is published on
+[OpenML](https://www.openml.org/d/41214) in two tables: one row per policy
+(risk features and exposure) and one row per claim (claim amount). It
+contains `{python} n_policies` policies.
+
+| Feature | Description |
+|---|---|
+| `Area`, `Region` | Where the policyholder lives |
+| `Density` | Inhabitants per km² in the policyholder's city |
+| `DrivAge` | Age of the driver |
+| `BonusMalus` | Bonus-malus level: below 100 means a claim-free history, above 100 a surcharge |
+| `VehPower`, `VehAge`, `VehBrand`, `VehGas` | Vehicle power, age, brand and fuel |
+| `Exposure` | Fraction of a year the policy was in force (≤ 1) |
+
+### Targets
+
+**`HasClaim` (binary).** 1 if the policy had at least one claim during its
+exposure period, 0 otherwise. Only `{python} claim_rate` of policies had a
+claim, so the classes are heavily imbalanced, which is typical for real
+classification problems and important for how metrics behave.
+
+**`PurePremium` (continuous).** Total claim cost divided by exposure, i.e. the
+cost per policy-year. It's what an insurer has to charge (before expenses) to
+cover claims. `{python} share_zero` of policies have a pure premium of 0, and
+the rest have a long right tail. Because pure premium is a rate per year, a
+policy observed for a full year carries more information than one observed for
+a week. All pure-premium models and metrics are therefore **weighted by
+exposure**.
+
+::: {.callout-note}
+## Data preparation
+- The claim count is taken from the claims table, so `HasClaim` and
+  `PurePremium` always agree.
+- Total claim cost per policy is capped at `{python} f"{CLAIM_AMOUNT_CAP:,}"` EUR
+  (a few claims reach 4 million), and exposure is capped at 1 year.
+- Average cost per claim ('severity') was considered as a target and dropped:
+  in this dataset, no model predicts it better than the overall mean.
+:::
+
+```{python}
+#| label: tbl-targets
+#| tbl-cap: "Distribution of the two targets."
+pp = policies.loc[policies["PurePremium"] > 0, "PurePremium"]
+pd.DataFrame(
+    {
+        "Statistic": ["Policies", "Claim rate", "Share with pure premium 0",
+                      "Median pure premium (when > 0)", "99th percentile (when > 0)"],
+        "Value": [n_policies, claim_rate, share_zero,
+                  f"{pp.median():,.0f} EUR", f"{pp.quantile(0.99):,.0f} EUR"],
+    }
+)
+```
+
+### Train/test split
+
+Policies are split once into 75% training and 25% test data
+(`{python} n_test` policies), stratified on `HasClaim` so both parts have the
+same claim rate. **Every metric in this project is computed on the test set.**
+Performance on the training data says how well a model memorized it, not how
+it will perform on new policies.
+
+## California Housing
+
+A classic regression dataset (shipped with scikit-learn): the median house
+value of 20,640 Californian districts from the 1990 census, in units of
+100,000 USD, with 8 features such as median income, house age and location.
+Unlike pure premium, it has a strong, smooth signal, so we use it to show how
+error metrics behave in the textbook case. It has one quirk: values were
+capped at 5.0 when the data was collected, which shows up in the residual
+plots.
+
+## Models
+
+Every target gets the same three models:
+
+| Model | `HasClaim` | `PurePremium` | California Housing |
+|---|---|---|---|
+| **Null** | training claim rate | training mean (exposure-weighted) | training mean |
+| **GLM** | logistic regression | Tweedie GLM, power 1.9, log link | linear regression |
+| **GBM** | gradient boosting, log loss | gradient boosting, Poisson loss | gradient boosting, squared error |
+
+- **Null** is the 'no model' reference. Any metric value only means something
+  next to what the Null model achieves.
+- **GLM** is the traditional, interpretable baseline, still the standard in
+  insurance pricing. The insurance GLMs use one-hot encoded categoricals,
+  binned vehicle and driver age, and log-scaled density and bonus-malus.
+- **GBM** (`HistGradientBoosting` in scikit-learn) is the flexible challenger.
+  It handles the categorical features natively and stops adding trees when a
+  validation split stops improving.
+
+The models are deliberately reasonable but not heavily tuned: the project is
+about *measuring* performance, not maximizing it.
+
+```{python}
+#| label: tbl-predictions
+#| tbl-cap: "Average test-set prediction of each model next to the actual average."
+b, p, h = binary_predictions(), pure_premium_predictions(), housing_predictions()
+rows = {
+    "HasClaim (claim rate)": [b["y"].mean()] + [b[m].mean() for m in ("Null", "GLM", "GBM")],
+    "PurePremium (EUR/year)": [np.average(p["y"], weights=p["w"])]
+        + [np.average(p[m], weights=p["w"]) for m in ("Null", "GLM", "GBM")],
+    "House value (100k USD)": [h["y"].mean()] + [h[m].mean() for m in ("Null", "GLM", "GBM")],
+}
+pd.DataFrame(rows, index=["Actual", "Null", "GLM", "GBM"]).T.round(4)
+```
+
+Here is how to get these predictions in your own code:
+
+```{python}
+#| code-fold: false
+#| eval: false
+from modelperf.models import binary_predictions
+
+b = binary_predictions()  # columns: y, Null, GLM, GBM (one row per test policy)
+```
