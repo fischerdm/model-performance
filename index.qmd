@@ -30,7 +30,8 @@ Metrics are grouped by the question they answer rather than listed by name:
 - **Classification at a threshold:** is the yes/no decision right?
   ([confusion matrix](docs/binary/confusion-matrix.qmd))
 - **Discrimination:** does the model rank cases correctly?
-  ([ROC and AUC](docs/binary/roc-auc.qmd))
+  ([ROC and AUC](docs/binary/roc-auc.qmd),
+  [precision–recall](docs/binary/precision-recall.qmd))
 - **Calibration:** do predicted probabilities match observed frequencies?
   ([calibration and scoring rules](docs/binary/calibration.qmd))
 - **Error size:** how far off are the predictions?
