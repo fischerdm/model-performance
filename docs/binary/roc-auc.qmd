@@ -1,0 +1,213 @@
+---
+title: "ROC curve and AUC"
+description: "Measuring how well a model ranks positives above negatives, across all thresholds."
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from modelperf.metrics import auc_rank, auc_trapezoid, gini_from_auc, roc_points, threshold_metrics
+from modelperf.models import binary_predictions
+from modelperf.plots import MODEL_COLORS, INK_SECONDARY, MUTED, plot_roc, use_style
+
+use_style()
+b = binary_predictions()
+y = b["y"]
+auc = {m: auc_rank(y, b[m]) for m in ("Null", "GLM", "GBM")}
+```
+
+**Question answered:** does the model rank policies with a claim above policies
+without one?
+
+## Every threshold at once
+
+On the [previous page](confusion-matrix.qmd), each threshold gave one
+confusion matrix and with it one pair of rates:
+
+- the **true positive rate** (TPR, recall): the share of claims we flag, and
+- the **false positive rate** (FPR): the share of non-claims we flag.
+
+The **ROC curve** (receiver operating characteristic) plots this pair for
+every possible threshold. A very high threshold flags nothing: the curve starts
+at (0, 0). Lowering it flags more and more policies until everything is flagged,
+at (1, 1). The marked points are the thresholds from the previous page:
+
+```{python}
+#| label: fig-roc-gbm
+#| fig-cap: "ROC curve of the GBM, with three thresholds marked."
+ax = plot_roc(y, {"GBM": b["GBM"]},
+              operating_points={"t = 0.2": ("GBM", 0.2), "t = 0.1": ("GBM", 0.1), "t = 0.05": ("GBM", 0.05)})
+```
+
+The diagonal is a model that ranks at random: whatever share of policies it
+flags, it flags the same share of claims and non-claims. The further a curve
+bulges towards the top-left corner, the better the model ranks.
+
+## Building the curve by hand
+
+Ten policies, sorted by predicted probability, make the construction concrete:
+
+```{python}
+#| label: tbl-toy
+#| tbl-cap: "Ten toy policies and the ROC point after lowering the threshold to each score."
+#| code-fold: false
+toy_y = np.array([1, 1, 0, 1, 0, 0, 1, 0, 0, 0])
+toy_p = np.array([0.9, 0.8, 0.7, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])
+toy_roc = roc_points(toy_y, toy_p)
+toy_roc.assign(outcome=np.r_[np.nan, toy_y])
+```
+
+Each time the threshold passes a policy, the curve takes a step: **up** by
+1/4 if it had a claim (4 positives), **right** by 1/6 if it didn't
+(6 negatives). A perfect model would go straight up first, then right.
+
+```{python}
+#| label: fig-toy-roc
+#| fig-cap: "ROC curve of the ten toy policies. Shaded: the area under the curve."
+fig, ax = plt.subplots(figsize=(4.2, 4))
+ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1)
+ax.fill_between(toy_roc["fpr"], toy_roc["tpr"], color=MODEL_COLORS["GLM"], alpha=0.1, linewidth=0)
+ax.plot(toy_roc["fpr"], toy_roc["tpr"], color=MODEL_COLORS["GLM"], marker="o", markersize=6,
+        markeredgecolor="#fcfcfb", markeredgewidth=2)
+ax.set(xlabel="False positive rate", ylabel="True positive rate", xlim=(0, 1), ylim=(0, 1.02), aspect="equal")
+toy_auc = auc_trapezoid(toy_roc["fpr"], toy_roc["tpr"])
+ax.annotate(f"AUC = {toy_auc:.3f}", (0.55, 0.3), color=INK_SECONDARY)
+```
+
+## AUC: two interpretations
+
+The **area under the ROC curve** (AUC) condenses the curve into one number
+between 0 and 1. It has two equivalent readings.
+
+**1. Geometric.** The area under the curve: 1.0 for a perfect model, 0.5 for
+random ranking (the diagonal).
+
+**2. Probabilistic.** The AUC is the probability that a randomly chosen
+policy *with* a claim gets a higher score than a randomly chosen policy
+*without* one (ties count half):
+
+$$
+\text{AUC} = P\left(\hat p_i > \hat p_j \mid y_i = 1,\ y_j = 0\right).
+$$
+
+The second reading makes clear that **AUC measures ranking only**. It's the
+Mann–Whitney U statistic, and it can be computed from ranks without drawing
+any curve. On the toy example, `{python} str(int(round(toy_auc * 24)))` of the
+4 × 6 = 24 (claim, no-claim) pairs are ordered correctly:
+`{python} str(int(round(toy_auc * 24)))`/24 = `{python} f"{toy_auc:.3f}"`.
+
+On the real test set, both computations agree, and so does a brute-force
+check that samples random pairs:
+
+```{python}
+#| label: tbl-auc-check
+#| tbl-cap: "AUC of the GBM, computed three ways."
+#| code-fold: false
+rng = np.random.default_rng(1)
+p_pos = b.loc[y == 1, "GBM"].to_numpy()
+p_neg = b.loc[y == 0, "GBM"].to_numpy()
+i, j = rng.integers(len(p_pos), size=1_000_000), rng.integers(len(p_neg), size=1_000_000)
+sampled = np.mean(p_pos[i] > p_neg[j]) + 0.5 * np.mean(p_pos[i] == p_neg[j])
+
+roc = roc_points(y, b["GBM"])
+pd.Series({
+    "Area under the curve (trapezoids)": auc_trapezoid(roc["fpr"], roc["tpr"]),
+    "Rank statistic (Mann–Whitney)": auc_rank(y, b["GBM"]),
+    "1 million random pairs": sampled,
+}, name="AUC").round(4).to_frame()
+```
+
+### Gini coefficient
+
+Credit scoring and insurance usually report the **Gini coefficient** (also
+called the accuracy ratio or Somers' D) instead:
+
+$$
+\text{Gini} = 2 \cdot \text{AUC} - 1.
+$$
+
+It rescales AUC so that random ranking scores 0 and perfect ranking scores 1.
+The GBM's AUC of `{python} f"{auc['GBM']:.3f}"` is a Gini of
+`{python} f"{gini_from_auc(auc['GBM']):.3f}"`. The insurance Gini computed
+from a Lorenz curve, which we'll meet with lift charts, is a close relative.
+
+## Comparing the models
+
+```{python}
+#| label: fig-roc-compare
+#| fig-cap: "ROC curves of all three models on the test set."
+ax = plot_roc(y, {m: b[m] for m in ("Null", "GLM", "GBM")})
+```
+
+```{python}
+#| include: false
+grid = np.linspace(0.01, 0.99, 99)
+tpr_at = {m: np.interp(grid, *roc_points(y, b[m])[["fpr", "tpr"]].T.to_numpy()) for m in ("GLM", "GBM")}
+gbm_share_above = np.mean(tpr_at["GBM"] >= tpr_at["GLM"])
+```
+
+The Null model gives everyone the same score, so its curve is the diagonal
+(AUC 0.5). The GBM (AUC `{python} f"{auc['GBM']:.3f}"`) ranks better than the
+GLM (AUC `{python} f"{auc['GLM']:.3f}"`). Its curve lies on or above the GLM's
+at `{python} f"{gbm_share_above:.0%}"` of false positive rates. Where one curve
+lies above another, that model is better *at every threshold* in that region.
+When curves cross, AUC alone hides which model is better in the region you
+actually operate in.
+
+How large is an AUC of 0.71? There is no universal scale. Whether a claim
+happens depends largely on chance, so even a perfect pricing model would be
+far from AUC 1. Judge AUC against the Null model, a simpler baseline and what
+is achievable for the problem, not against an absolute benchmark.
+
+## What AUC does not tell you
+
+**It ignores calibration.** AUC depends only on the *order* of the
+predictions. Any transformation that keeps the order leaves it unchanged, even
+one that ruins the probabilities:
+
+```{python}
+#| label: tbl-auc-calibration
+#| tbl-cap: "Order-preserving transformations of the GBM: same AUC, very different probabilities."
+#| code-fold: false
+variants = {
+    "GBM": b["GBM"],
+    "GBM / 10": b["GBM"] / 10,
+    "GBM ^ 0.2": b["GBM"] ** 0.2,
+}
+pd.DataFrame({
+    "AUC": {k: auc_rank(y, v) for k, v in variants.items()},
+    "Average predicted probability": {k: v.mean() for k, v in variants.items()},
+    "Actual claim rate": {k: y.mean() for k in variants},
+}).round(3)
+```
+
+All three rank equally well, but only the first predicts claim probabilities
+that resemble reality. If the probabilities themselves matter (pricing, expected
+cost, the threshold formula on the previous page), measure **calibration** as
+well.
+
+**It weighs all thresholds equally.** AUC averages over the whole curve,
+including regions no one would use. With 96% non-claims, a false positive rate
+of just 10% already means `{python} f"{0.1 * (y == 0).sum():,.0f}"` false
+alarms on the test set. If only the top few percent of scores will ever be
+acted on, look at the left part of the curve, at precision–recall curves, or
+at lift charts.
+
+**It is an estimate.** The test set is a sample, so AUC has sampling
+uncertainty. Before concluding that the GBM beats the GLM, we need a
+confidence interval for the difference (bootstrap or DeLong's test, on a later
+page).
+
+## Takeaways
+
+- The ROC curve shows the trade-off between catching positives (TPR) and
+  false alarms (FPR) across **all thresholds**.
+- AUC is the **probability of ranking a random positive above a random
+  negative**: 0.5 is random, 1.0 is perfect. Gini = 2·AUC − 1.
+- AUC measures **ranking only**: it says nothing about whether the
+  probabilities are right.
+- Under heavy imbalance, complement it with precision–recall or lift, and
+  always quantify its uncertainty when comparing models.
