@@ -31,10 +31,12 @@ Metrics are grouped by the question they answer rather than listed by name:
   ([confusion matrix](docs/binary/confusion-matrix.qmd))
 - **Discrimination:** does the model rank cases correctly?
   ([ROC and AUC](docs/binary/roc-auc.qmd))
+- **Calibration:** do predicted probabilities match observed frequencies?
+  ([calibration and scoring rules](docs/binary/calibration.qmd))
 - **Error size:** how far off are the predictions?
   ([error metrics](docs/continuous/error-metrics.qmd),
   [deviance](docs/continuous/deviance.qmd))
-- Calibration, lift charts, model comparison and drift: *coming next*.
+- Lift charts, model comparison and drift: *coming next*.
 
 ## Working with the code
 

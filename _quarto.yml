@@ -25,6 +25,7 @@ website:
         contents:
           - docs/binary/confusion-matrix.qmd
           - docs/binary/roc-auc.qmd
+          - docs/binary/calibration.qmd
       - section: "Continuous outcomes"
         contents:
           - docs/continuous/error-metrics.qmd

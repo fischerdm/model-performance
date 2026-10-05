@@ -186,8 +186,8 @@ pd.DataFrame({
 
 All three rank equally well, but only the first predicts claim probabilities
 that resemble reality. If the probabilities themselves matter (pricing, expected
-cost, the threshold formula on the previous page), measure **calibration** as
-well.
+cost, the threshold formula on the previous page), measure
+[**calibration**](calibration.qmd) as well.
 
 **It weighs all thresholds equally.** AUC averages over the whole curve,
 including regions no one would use. With 96% non-claims, a false positive rate
