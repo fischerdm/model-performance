@@ -13,8 +13,10 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
 from .metrics import (
+    average_precision,
     calibration_bins,
     isotonic_recalibration,
+    pr_points,
     reliability_band,
     roc_points,
     threshold_metrics,
@@ -152,7 +154,7 @@ def plot_threshold_metrics(y, p, ax=None, metrics=("accuracy", "precision", "rec
     return ax
 
 
-def plot_roc(y, preds: dict, ax=None, operating_points: dict | None = None):
+def plot_roc(y, preds: dict, ax=None, operating_points: dict | None = None, colors: dict | None = None):
     """ROC curves for several models, with AUC in the legend.
 
     ``operating_points`` maps a label to ``(model name, threshold)`` and marks
@@ -160,16 +162,17 @@ def plot_roc(y, preds: dict, ax=None, operating_points: dict | None = None):
     diagonal is drawn unless the Null model (which traces it) is plotted.
     """
     ax = _ax(ax)
+    colors = {**MODEL_COLORS, **(colors or {})}
     if "Null" not in preds:
         ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1, label="Random guessing (AUC 0.5)")
     for name, p in preds.items():
         roc = roc_points(y, p)
         auc = np.trapezoid(roc["tpr"], roc["fpr"])
-        ax.plot(roc["fpr"], roc["tpr"], color=MODEL_COLORS.get(name), label=f"{name} (AUC {auc:.3f})")
+        ax.plot(roc["fpr"], roc["tpr"], color=colors.get(name), label=f"{name} (AUC {auc:.3f})")
     for label, (name, t) in (operating_points or {}).items():
         m = threshold_metrics(y, preds[name], t)
         ax.plot(m["false positive rate"], m["recall (TPR)"], "o", markersize=8,
-                color=MODEL_COLORS.get(name), markeredgecolor=SURFACE, markeredgewidth=2)
+                color=colors.get(name), markeredgecolor=SURFACE, markeredgewidth=2)
         ax.annotate(label, (m["false positive rate"], m["recall (TPR)"]), xytext=(8, -4),
                     textcoords="offset points", va="top", fontsize=9, color=INK_SECONDARY)
     ax.set_xlabel("False positive rate (1 − specificity)")
@@ -178,6 +181,41 @@ def plot_roc(y, preds: dict, ax=None, operating_points: dict | None = None):
     ax.set_ylim(0, 1.01)
     ax.set_aspect("equal")
     ax.legend(loc="lower right")
+    return ax
+
+
+def plot_pr(y, preds: dict, ax=None, iso_f1=(0.1, 0.2, 0.3), colors: dict | None = None,
+            labels: dict | None = None, baseline: bool = True, ylim: float = 1.0):
+    """Precision-recall curves with average precision (AP) in the legend.
+
+    The horizontal line is the positive rate: the precision of random
+    flagging (and the AP of the Null model). Thin gray curves mark points of
+    equal F1 score.
+    """
+    ax = _ax(ax)
+    colors = {**MODEL_COLORS, **(colors or {})}
+    labels = labels or {}
+    y = np.asarray(y)
+    r = np.linspace(0.001, 1, 400)
+    for f in iso_f1:
+        prec = f * r / (2 * r - f)
+        keep = (prec > 0) & (prec <= ylim)
+        ax.plot(r[keep], prec[keep], color=GRID, linewidth=1, zorder=0)
+        ax.annotate(f"F1 = {f:g}", (1, f / (2 - f)), xytext=(-2, 3), textcoords="offset points",
+                    ha="right", fontsize=8, color=MUTED)
+    if baseline:
+        rate = y.mean()
+        ax.axhline(rate, color=MUTED, linewidth=1, label=f"Null / random (AP {rate:.3f})")
+    for name, p in preds.items():
+        pr = pr_points(y, p)
+        ap = average_precision(y, p)
+        ax.plot(np.r_[0, pr["recall"]], np.r_[pr["precision"].iloc[0], pr["precision"]],
+                drawstyle="steps-pre", color=colors.get(name), label=f"{labels.get(name, name)} (AP {ap:.3f})")
+    ax.set_xlabel("Recall (share of claims flagged)")
+    ax.set_ylabel("Precision (share of flagged with a claim)")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, ylim)
+    ax.legend(loc="upper right")
     return ax
 
 

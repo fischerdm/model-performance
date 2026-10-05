@@ -104,6 +104,50 @@ def gini_from_auc(auc: float) -> float:
     return 2 * auc - 1
 
 
+def pr_points(y, scores) -> pd.DataFrame:
+    """Precision-recall curve: one point per distinct score, recall increasing.
+
+    Uses the same threshold sweep as ``roc_points``; precision is
+    TP / (TP + FP) among all cases scored at or above the threshold.
+    """
+    roc = roc_points(y, scores).iloc[1:]  # drop the 'flag nothing' point (precision undefined)
+    y = np.asarray(y).astype(float)
+    n_pos, n_neg = y.sum(), y.size - y.sum()
+    tp, fp = roc["tpr"] * n_pos, roc["fpr"] * n_neg
+    return pd.DataFrame(
+        {"threshold": roc["threshold"], "recall": roc["tpr"], "precision": tp / (tp + fp)}
+    ).reset_index(drop=True)
+
+
+def average_precision(y, scores) -> float:
+    """Average precision: precision at each threshold, weighted by the recall it adds.
+
+    AP = Σ (R_k − R_{k−1}) · P_k. Unlike the trapezoidal area under the PR
+    curve, it does not interpolate linearly between points, which would
+    overstate precision.
+    """
+    pr = pr_points(y, scores)
+    recall_gain = np.diff(np.r_[0.0, pr["recall"]])
+    return float(np.sum(recall_gain * pr["precision"]))
+
+
+def top_share_metrics(y, scores, share: float) -> pd.Series:
+    """Precision, recall and lift when flagging the ``share`` of cases with the highest scores.
+
+    Lift is precision divided by the overall positive rate: how many times
+    more positives the flagged group contains than a random group of the
+    same size.
+    """
+    y = np.asarray(y).astype(float)
+    k = int(np.ceil(share * y.size))
+    top = np.argsort(-np.asarray(scores, dtype=float), kind="mergesort")[:k]
+    precision = y[top].mean()
+    return pd.Series(
+        {"precision": precision, "recall": y[top].sum() / y.sum(), "lift": precision / y.mean()},
+        name=share,
+    )
+
+
 # --- Calibration and proper scoring rules ----------------------------------
 
 

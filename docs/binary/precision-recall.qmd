@@ -1,0 +1,312 @@
+---
+title: "Precision–recall curves"
+description: "Evaluating the flagged cases when positives are rare: PR curves, average precision, precision and lift in the top k%, and the role of the base rate."
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from modelperf.metrics import (
+    auc_rank,
+    average_precision,
+    pr_points,
+    roc_points,
+    threshold_metrics,
+    top_share_metrics,
+)
+from modelperf.models import binary_predictions
+from modelperf.plots import INK_SECONDARY, MODEL_COLORS, MUTED, SURFACE, plot_pr, use_style
+
+use_style()
+b = binary_predictions()
+y = b["y"]
+rate = y.mean()
+models = ("GLM", "GBM")
+auc = {m: auc_rank(y, b[m]) for m in models}
+ap = {m: average_precision(y, b[m]) for m in models}
+```
+
+**Question answered:** of the cases the model flags, how many are real
+positives, and how many of the real positives does it find?
+
+## Why look beyond ROC
+
+The [ROC curve](roc-auc.qmd) measures false alarms *relative to all
+negatives*: the false positive rate is FP / (FP + TN). With
+`{python} f"{1 - rate:.1%}"` of policies without a claim, that denominator is
+huge, and a small false positive rate can hide a large number of false alarms:
+
+```{python}
+#| include: false
+m10 = threshold_metrics(y, b["GBM"], 0.1)
+c10 = (m10["false positive rate"] * (y == 0).sum(), m10["recall (TPR)"] * (y == 1).sum())
+```
+
+At a threshold of 0.1, the GBM has a false positive rate of only
+`{python} f"{m10['false positive rate']:.1%}"`: a point far to the left on the
+ROC curve. But that is `{python} f"{c10[0]:,.0f}"` false alarms against
+`{python} f"{c10[1]:,.0f}"` correctly flagged claims, so only
+`{python} f"{m10['precision']:.0%}"` of the flagged policies actually have a
+claim.
+
+**Precision** relates false alarms to true hits instead of to all negatives,
+so it shows directly what happens among the flagged cases. That makes it the
+natural metric when positives are rare and attention goes to the cases the
+model flags: fraud checks, claim reviews, medical screening, marketing
+campaigns.
+
+## The precision–recall curve
+
+The PR curve uses the same threshold sweep as the ROC curve, but plots
+
+- **recall** (true positive rate: the share of all claims we flag) on the
+  x-axis, against
+- **precision** (the share of flagged policies with a claim) on the y-axis.
+
+Starting from a very high threshold, only the highest-risk policies are
+flagged: recall is small and, for a good model, precision is high. Lowering the
+threshold raises recall and, usually, lowers precision, until everything is
+flagged: recall 1 and precision equal to the overall claim rate.
+
+```{python}
+#| label: fig-pr
+#| fig-cap: "Precision–recall curves on the test set. Thin gray curves connect points with the same F1 score."
+ax = plot_pr(y, {m: b[m] for m in models}, ylim=0.5)
+```
+
+Three things differ from a ROC plot:
+
+- **The baseline is the claim rate, not a diagonal.** Flagging at random gives
+  a precision equal to the claim rate (`{python} f"{rate:.1%}"`) at every recall.
+- **The curve isn't monotone.** Precision can go up *or* down when the
+  threshold drops, so the curve is jagged, especially on the left where few
+  policies are flagged and each one changes precision noticeably.
+- **The left part matters most.** It shows the highest-risk policies, which is
+  where a review or intervention would start. Here the GBM clearly beats the
+  GLM, even though their ROC curves were close.
+
+```{python}
+#| include: false
+def best_f1(m):
+    """Highest F1 over all thresholds, and the threshold where it is reached."""
+    pr = pr_points(y, b[m])
+    f1 = 2 * pr["precision"] * pr["recall"] / (pr["precision"] + pr["recall"])
+    return f1.max(), pr.loc[f1.idxmax(), "threshold"]
+f1 = {m: best_f1(m) for m in models}
+```
+
+The gray curves connect points of equal **F1 score**, the harmonic mean of
+precision and recall. The best F1 the GBM reaches is
+`{python} f"{f1['GBM'][0]:.3f}"` (at threshold `{python} f"{f1['GBM'][1]:.2f}"`),
+against `{python} f"{f1['GLM'][0]:.3f}"` for the GLM. Low values like these are
+typical for rare events. F1 is only a convenient summary: it weights precision
+and recall equally, which rarely matches the actual costs of misses and false
+alarms.
+
+## Average precision
+
+**Average precision** (AP) condenses the PR curve into one number: the
+precision at each threshold, weighted by how much recall that threshold adds,
+
+$$
+\text{AP} = \sum_k (R_k - R_{k-1})\, P_k,
+$$
+
+where $R_k$ and $P_k$ are recall and precision after lowering the threshold
+past the $k$-th distinct score. The Null model's AP equals the claim rate.
+
+Using the same ten toy policies as on the ROC page:
+
+```{python}
+#| label: tbl-toy-pr
+#| tbl-cap: "Precision and recall of the ten toy policies, and each threshold's contribution to AP."
+#| code-fold: false
+toy_y = np.array([1, 1, 0, 1, 0, 0, 1, 0, 0, 0])
+toy_p = np.array([0.9, 0.8, 0.7, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])
+toy = pr_points(toy_y, toy_p)
+toy["AP contribution"] = np.diff(np.r_[0, toy["recall"]]) * toy["precision"]
+toy.round(3)
+```
+
+```{python}
+#| include: false
+toy_ap = toy["AP contribution"].sum()
+toy_trap = np.trapezoid(np.r_[1.0, toy["precision"]], np.r_[0.0, toy["recall"]])
+```
+
+Only the thresholds that add a claim contribute, each with weight 1/4. The AP is
+`{python} f"{toy_ap:.3f}"`: on average, when the threshold passes a policy with a
+claim, `{python} f"{toy_ap:.0%}"` of the flagged policies have a claim.
+
+::: {.callout-warning}
+## Don't use the trapezoidal area
+Computing the area under the PR curve with the trapezoidal rule (as for ROC)
+connects the points with straight lines. Between two PR points, precision does
+not change linearly, so the result is off, in either direction, and it also
+depends on which starting point is assumed at recall 0. On the toy example it
+gives `{python} f"{toy_trap:.3f}"` instead of `{python} f"{toy_ap:.3f}"`. With
+many distinct scores the gap shrinks, but AP is the well-defined summary:
+`average_precision_score` in scikit-learn, whereas `sklearn.metrics.auc` on a
+PR curve is the trapezoidal version.
+:::
+
+## ROC and PR tell different stories
+
+```{python}
+#| label: tbl-auc-ap
+#| tbl-cap: "Ranking metrics of both models. 'AP / claim rate' shows how many times better than random the average precision is."
+pd.DataFrame({
+    "AUC": auc,
+    "Average precision": ap,
+    "AP / claim rate": {m: ap[m] / rate for m in models},
+}).round(3)
+```
+
+The GBM's AUC is `{python} f"{auc['GBM'] - auc['GLM']:.3f}"` higher than the
+GLM's, a modest `{python} f"{auc['GBM'] / auc['GLM'] - 1:.0%}"`. Its average
+precision is `{python} f"{ap['GBM'] / ap['GLM'] - 1:.0%}"` higher. Both metrics
+summarize the same ranking, but they weight it differently:
+
+- **AUC** weighs all pairs of a claim and a non-claim equally, wherever they
+  are in the ranking.
+- **AP** weighs the top of the ranking most: a claim ranked first raises
+  precision at every later threshold.
+
+The GBM's advantage is concentrated in its highest-risk predictions, so AP
+shows it more clearly.
+
+## Precision and lift in the top k%
+
+In practice, capacity is often fixed: 'we can review 5% of policies'. Then
+the relevant question is how good the top 5% of the ranking is. Two measures
+answer it:
+
+- **precision at k%**: the share of flagged policies with a claim, and
+- **lift at k%**: precision divided by the overall claim rate, i.e. how many
+  times more claims the flagged group contains than a random group of the same
+  size.
+
+```{python}
+#| label: tbl-top-k
+#| tbl-cap: "Flagging the k% of policies with the highest predicted probability."
+shares = [0.01, 0.05, 0.10, 0.20]
+top = pd.concat(
+    {m: pd.DataFrame({f"top {s:.0%}": top_share_metrics(y, b[m], s) for s in shares}).T for m in models},
+    axis=1,
+)
+top.round(3)
+```
+
+```{python}
+#| include: false
+t1 = {m: top_share_metrics(y, b[m], 0.01) for m in models}
+```
+
+Flagging the top 1%, the GBM finds `{python} f"{t1['GBM']['lift']:.1f}"` times
+more claims than random selection would, the GLM
+`{python} f"{t1['GLM']['lift']:.1f}"` times. As the flagged share grows,
+precision falls towards the claim rate and lift towards 1. Showing lift for
+every decile of the ranking gives a **lift chart**, the subject of a later
+page.
+
+## Precision depends on the claim rate
+
+Precision has a property that matters a lot in practice: unlike the ROC curve,
+it **depends on the base rate**. At any threshold,
+
+$$
+\text{precision} = \frac{\pi \cdot \text{TPR}}{\pi \cdot \text{TPR} + (1 - \pi) \cdot \text{FPR}},
+$$
+
+where $\pi$ is the share of positives. TPR and FPR are properties of the model
+alone. Precision mixes them with $\pi$. To see the effect, we keep all policies
+with a claim and randomly drop policies without a claim until the claim rate
+reaches 10%, 20% and 50%. The model and its ranking don't change.
+
+```{python}
+#| code-fold: false
+rng = np.random.default_rng(0)
+pos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)
+samples = {}
+for target in (rate, 0.10, 0.20, 0.50):
+    n_neg = min(len(neg), int(len(pos) * (1 - target) / target))
+    idx = np.r_[pos, rng.choice(neg, n_neg, replace=False)]
+    samples[f"{target:.1%}"] = (y.to_numpy()[idx], b["GBM"].to_numpy()[idx])
+```
+
+```{python}
+#| label: fig-prevalence
+#| fig-cap: "The same GBM evaluated at different claim rates (by subsampling policies without a claim). Left: ROC curves. Right: precision–recall curves."
+ramp = ["#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]  # light to dark: rising claim rate
+fig, axes = plt.subplots(1, 2, figsize=(10, 4.6))
+axes[0].plot([0, 1], [0, 1], color=MUTED, linewidth=1)
+for (label, (ys, ps)), color in zip(samples.items(), ramp):
+    roc, pr = roc_points(ys, ps), pr_points(ys, ps)
+    axes[0].plot(roc["fpr"], roc["tpr"], color=color, label=f"claim rate {label} (AUC {auc_rank(ys, ps):.3f})")
+    axes[1].plot(np.r_[0, pr["recall"]], np.r_[pr["precision"].iloc[0], pr["precision"]],
+                 drawstyle="steps-pre", color=color, label=f"claim rate {label} (AP {average_precision(ys, ps):.3f})")
+axes[0].set(xlabel="False positive rate", ylabel="True positive rate", xlim=(0, 1), ylim=(0, 1.01), aspect="equal")
+axes[1].set(xlabel="Recall", ylabel="Precision", xlim=(0, 1), ylim=(0, 1.01))
+axes[0].legend(loc="lower right")
+axes[1].legend(loc="upper right")
+fig.tight_layout()
+```
+
+```{python}
+#| include: false
+ap_by_rate = {k: average_precision(*v) for k, v in samples.items()}
+```
+
+The ROC curves lie on top of each other: AUC doesn't change. The PR curves rise
+with the claim rate, and AP climbs from `{python} f"{ap_by_rate[f'{rate:.1%}']:.2f}"`
+to `{python} f"{ap_by_rate['50.0%']:.2f}"`. **Same model, same ranking,
+different AP.** This has practical consequences:
+
+- **Don't compare AP across datasets, segments or time periods with different
+  base rates.** A higher AP may only mean more positives. Report the base rate
+  next to every AP, or report AP / base rate.
+- **Balanced test sets inflate precision.** Undersampling negatives, common in
+  fraud and medical studies, makes precision look far better than it will be in
+  production.
+- **Precision drifts when the base rate drifts.** If the claim rate drops next
+  year, the precision of the same model at the same threshold drops too, even
+  though nothing about the model has changed. This is one reason to monitor the
+  base rate along with model metrics.
+
+## ROC or PR?
+
+The two curves contain the same information (given the base rate, every ROC
+point maps to exactly one PR point), but they emphasize different things:
+
+| | ROC / AUC | PR / AP |
+|---|---|---|
+| Focus | the whole ranking, both classes | the top of the ranking, positive class |
+| False alarms measured relative to | all negatives | true hits |
+| Depends on base rate | no | yes |
+| Random baseline | 0.5 | base rate |
+| Good for | comparing rankings across populations; when both error types matter | rare positives where only the flagged cases are acted on |
+
+It's often claimed that AP is 'the right metric for imbalanced data'. That's
+too simple. Imbalance alone doesn't make AUC wrong. Recent work (McDermott et
+al., 2024) shows that AP favors improvements at the top of the ranking and can
+favor models that work best for the subgroups with the highest base rates.
+**Choose by the question**: use AUC when the whole ranking matters, AP or
+precision at k% when only the top of the ranking is acted on, and report the
+base rate with any precision-based metric.
+
+## Takeaways
+
+- **Precision** relates false alarms to true hits, which is what matters when
+  positives are rare and only flagged cases are acted on.
+- The **PR curve**'s baseline is the base rate. **Average precision** is its
+  correct summary; don't use the trapezoidal area.
+- AP weights the **top of the ranking**. Here it shows the GBM's advantage
+  (`{python} f"{ap['GBM'] / ap['GLM'] - 1:.0%}"`) much more clearly than AUC
+  (`{python} f"{auc['GBM'] / auc['GLM'] - 1:.0%}"`).
+- With fixed capacity, report **precision and lift at k%**.
+- Precision and AP **depend on the base rate**. Never compare them across
+  populations with different base rates, and watch them change when the base
+  rate drifts.

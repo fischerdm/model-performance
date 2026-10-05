@@ -62,6 +62,29 @@ def test_auc_two_ways(binary):
     assert mp.auc_rank(y, p) == pytest.approx(expected)
 
 
+def test_pr_points(binary):
+    y, p = binary
+    pr = mp.pr_points(y, p)
+    precision, recall, _ = skm.precision_recall_curve(y, p, drop_intermediate=False)
+    # scikit-learn lists points with recall decreasing and appends (recall 0, precision 1).
+    np.testing.assert_allclose(pr["recall"], recall[:-1][::-1])
+    np.testing.assert_allclose(pr["precision"], precision[:-1][::-1])
+
+
+def test_average_precision(binary):
+    y, p = binary
+    assert mp.average_precision(y, p) == pytest.approx(skm.average_precision_score(y, p))
+
+
+def test_top_share_metrics():
+    y = np.array([1, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+    s = np.arange(10, 0, -1)  # scores already in decreasing order
+    m = mp.top_share_metrics(y, s, 0.2)
+    assert m["precision"] == pytest.approx(0.5)
+    assert m["recall"] == pytest.approx(0.5)
+    assert m["lift"] == pytest.approx(2.5)
+
+
 @pytest.fixture
 def calibrated():
     """Outcomes drawn from the predicted probabilities: calibrated by construction."""

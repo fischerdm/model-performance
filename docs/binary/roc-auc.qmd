@@ -193,8 +193,8 @@ cost, the threshold formula on the previous page), measure
 including regions no one would use. With 96% non-claims, a false positive rate
 of just 10% already means `{python} f"{0.1 * (y == 0).sum():,.0f}"` false
 alarms on the test set. If only the top few percent of scores will ever be
-acted on, look at the left part of the curve, at precision–recall curves, or
-at lift charts.
+acted on, look at the left part of the curve, at
+[precision–recall curves](precision-recall.qmd), or at lift charts.
 
 **It is an estimate.** The test set is a sample, so AUC has sampling
 uncertainty. Before concluding that the GBM beats the GLM, we need a
