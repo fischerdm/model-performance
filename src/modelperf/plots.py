@@ -12,7 +12,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
-from .metrics import roc_points, threshold_metrics
+from .metrics import (
+    calibration_bins,
+    isotonic_recalibration,
+    reliability_band,
+    roc_points,
+    threshold_metrics,
+)
 
 # Chart chrome
 SURFACE = "#fcfcfb"
@@ -172,6 +178,55 @@ def plot_roc(y, preds: dict, ax=None, operating_points: dict | None = None):
     ax.set_ylim(0, 1.01)
     ax.set_aspect("equal")
     ax.legend(loc="lower right")
+    return ax
+
+
+def plot_reliability(y, preds: dict, ax=None, method: str = "corp", n_bins: int = 20,
+                     strategy: str = "quantile", band: bool = False, max_p: float | None = None,
+                     title: str | None = None, colors: dict | None = None):
+    """Reliability diagram: observed rate against predicted probability.
+
+    ``method="bins"`` plots one point per bin (with a 95% Wilson interval);
+    ``method="corp"`` plots the isotonic (CORP) reliability curve, optionally
+    with a 90% consistency band showing where a calibrated model's curve could
+    fall by chance.
+    """
+    ax = _ax(ax)
+    colors = {**MODEL_COLORS, **(colors or {})}
+    y = np.asarray(y)
+    if max_p is None:
+        max_p = max(np.quantile(np.asarray(p), 0.995) for p in preds.values())
+    ax.plot([0, max_p], [0, max_p], color=MUTED, linewidth=1)
+    for name, p in preds.items():
+        p = np.asarray(p)
+        color = colors.get(name)
+        if method == "bins":
+            t = calibration_bins(y, p, n_bins=n_bins, strategy=strategy)
+            ax.errorbar(t["mean_predicted"], t["observed_rate"],
+                        yerr=[t["observed_rate"] - t["lower"], t["upper"] - t["observed_rate"]],
+                        color=color, linewidth=1.5, elinewidth=1, capsize=0, marker="o", markersize=6,
+                        markeredgecolor=SURFACE, markeredgewidth=1.5, label=name)
+        else:
+            order = np.argsort(p)
+            curve = isotonic_recalibration(y, p)[order]
+            if band:
+                grid = np.linspace(p.min(), min(p.max(), max_p), 200)
+                b = reliability_band(p, grid)
+                ax.fill_between(b["p"], b["lower"], b["upper"], color=color, alpha=0.12, linewidth=0,
+                                label=f"{name}: 90% consistency band")
+            ax.plot(p[order], curve, color=color, drawstyle="steps-post", label=name)
+    ax.annotate("predictions too low", (0.03, 0.97), xycoords="axes fraction", va="top",
+                fontsize=9, color=MUTED)
+    ax.annotate("predictions too high", (0.97, 0.03), xycoords="axes fraction", ha="right",
+                fontsize=9, color=MUTED)
+    ax.set_xlim(0, max_p)
+    ax.set_ylim(0, max_p)
+    ax.set_aspect("equal")
+    ax.set_xlabel("Predicted probability")
+    ax.set_ylabel("Observed rate")
+    ax.legend(loc="upper left", bbox_to_anchor=(0, 0.92))
+    if title:
+        ax.set_title(title)
     return ax
 
 

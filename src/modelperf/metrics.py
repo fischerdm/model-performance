@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
+from scipy.optimize import minimize, minimize_scalar
+from scipy.special import expit, logit
+from scipy.stats import norm, rankdata
+from sklearn.isotonic import IsotonicRegression
+
+EPS = 1e-15
 
 # --- Binary outcomes -------------------------------------------------------
 
@@ -97,6 +102,124 @@ def auc_rank(y, scores) -> float:
 def gini_from_auc(auc: float) -> float:
     """Gini coefficient (accuracy ratio) of a binary classifier: 2·AUC − 1."""
     return 2 * auc - 1
+
+
+# --- Calibration and proper scoring rules ----------------------------------
+
+
+def brier_score(y, p) -> float:
+    """Mean squared difference between predicted probability and outcome."""
+    y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
+    return float(np.mean((p - y) ** 2))
+
+
+def log_loss(y, p) -> float:
+    """Mean negative log-likelihood of the outcomes under the predicted probabilities."""
+    y = np.asarray(y, dtype=float)
+    p = np.clip(np.asarray(p, dtype=float), EPS, 1 - EPS)
+    return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1 - p)))
+
+
+SCORES = {"Brier": brier_score, "log loss": log_loss}
+
+
+def calibration_bins(y, p, n_bins: int = 10, strategy: str = "quantile", level: float = 0.95) -> pd.DataFrame:
+    """Binned reliability table: mean prediction vs observed rate per bin.
+
+    ``strategy`` is ``"quantile"`` (bins with equal counts) or ``"uniform"``
+    (bins of equal width between the smallest and largest prediction). The
+    observed rate gets a Wilson score interval.
+    """
+    y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
+    if strategy == "quantile":
+        edges = np.unique(np.quantile(p, np.linspace(0, 1, n_bins + 1)))
+    else:
+        edges = np.linspace(p.min(), p.max(), n_bins + 1)
+    bin_id = np.clip(np.searchsorted(edges, p, side="right") - 1, 0, len(edges) - 2)
+    table = (
+        pd.DataFrame({"bin": bin_id, "p": p, "y": y})
+        .groupby("bin")
+        .agg(mean_predicted=("p", "mean"), observed_rate=("y", "mean"), n=("y", "size"))
+    )
+    z = norm.ppf(0.5 + level / 2)
+    n, r = table["n"], table["observed_rate"]
+    centre = (r + z**2 / (2 * n)) / (1 + z**2 / n)
+    half = z * np.sqrt(r * (1 - r) / n + z**2 / (4 * n**2)) / (1 + z**2 / n)
+    return table.assign(lower=centre - half, upper=centre + half).reset_index(drop=True)
+
+
+def expected_calibration_error(y, p, n_bins: int = 10, strategy: str = "quantile") -> float:
+    """ECE: share-weighted average gap between mean prediction and observed rate per bin."""
+    t = calibration_bins(y, p, n_bins, strategy)
+    return float(np.average(np.abs(t["mean_predicted"] - t["observed_rate"]), weights=t["n"]))
+
+
+def calibration_intercept_slope(y, p) -> pd.Series:
+    """Logistic recalibration: ``logit P(y=1) = a + b · logit(p)``.
+
+    - Calibration intercept: ``a`` with ``b`` fixed at 1. Positive means the
+      predictions are too low on average, negative too high.
+    - Calibration slope: ``b`` from the two-parameter fit. Below 1 means the
+      predictions are too extreme (spread too far from the mean), above 1 too
+      timid.
+    """
+    y = np.asarray(y, dtype=float)
+    z = logit(np.clip(np.asarray(p, dtype=float), EPS, 1 - EPS))
+    intercept = minimize_scalar(lambda a: log_loss(y, expit(a + z))).x
+    _, b = minimize(lambda ab: log_loss(y, expit(ab[0] + ab[1] * z)), x0=[0.0, 1.0]).x
+    return pd.Series({"calibration intercept": intercept, "calibration slope": b})
+
+
+def isotonic_recalibration(y, p) -> np.ndarray:
+    """Best monotone (non-decreasing) mapping of ``p`` to observed rates (PAV algorithm).
+
+    This is the CORP reliability curve: evaluated at each prediction, it gives
+    the observed rate among cases with similar predictions, with the bins
+    chosen optimally by the data instead of by hand.
+    """
+    iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip")
+    return iso.fit(p, y).predict(p)
+
+
+def murphy_decomposition(y, p, score: str = "Brier") -> pd.Series:
+    """CORP decomposition: score = miscalibration (MCB) − discrimination (DSC) + uncertainty (UNC).
+
+    - UNC: score of always predicting the observed rate (the Null model).
+    - DSC: how much the score improves when the predictions are optimally
+      recalibrated (isotonic regression), compared with UNC. Depends only on
+      the ranking of the predictions.
+    - MCB: how much worse the actual predictions score than their
+      recalibrated version.
+    """
+    y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
+    s = SCORES[score]
+    total = s(y, p)
+    recalibrated = s(y, isotonic_recalibration(y, p))
+    uncertainty = s(y, np.full_like(p, y.mean()))
+    return pd.Series(
+        {score: total, "MCB": total - recalibrated, "DSC": uncertainty - recalibrated, "UNC": uncertainty}
+    )
+
+
+def reliability_band(p, grid, n_resamples: int = 200, level: float = 0.9, seed: int = 0) -> pd.DataFrame:
+    """Consistency band for a CORP reliability curve.
+
+    Simulates outcomes from the predictions themselves (so the model is
+    calibrated by construction), recomputes the isotonic curve each time, and
+    returns pointwise quantiles at ``grid``. An observed curve outside the band
+    is evidence of miscalibration beyond sampling noise.
+    """
+    rng = np.random.default_rng(seed)
+    p = np.asarray(p, dtype=float)
+    curves = np.empty((n_resamples, len(grid)))
+    for k in range(n_resamples):
+        y_sim = rng.random(p.size) < p
+        iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip").fit(p, y_sim)
+        curves[k] = iso.predict(grid)
+    tail = (1 - level) / 2
+    return pd.DataFrame(
+        {"p": grid, "lower": np.quantile(curves, tail, axis=0), "upper": np.quantile(curves, 1 - tail, axis=0)}
+    )
 
 
 # --- Continuous outcomes ---------------------------------------------------
