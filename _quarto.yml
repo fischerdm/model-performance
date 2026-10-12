@@ -32,6 +32,9 @@ website:
           - docs/continuous/error-metrics.qmd
           - docs/continuous/deviance.qmd
           - docs/continuous/lift-lorenz.qmd
+      - section: "Comparing models"
+        contents:
+          - docs/comparison/model-comparison.qmd
 
 format:
   html:

@@ -28,6 +28,7 @@ docs/
   foundations/           data and models
   binary/                confusion matrix, ROC/AUC, precision-recall, calibration
   continuous/            error metrics, deviance, lift charts and Lorenz curves
+  comparison/            paired bootstrap, DeLong and Diebold–Mariano tests
 src/modelperf/
   data.py                loading and splitting the datasets
   models.py              Null / GLM / GBM per target, cached

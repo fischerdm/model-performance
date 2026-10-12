@@ -377,3 +377,63 @@ def plot_lorenz(y, preds: dict, weight, ax=None, oracle: bool = True, colors: di
     ax.set_aspect("equal")
     ax.legend(loc="upper left")
     return ax
+
+
+# --- Model comparison --------------------------------------------------------
+
+
+def plot_paired_bootstrap(boot, a: str, b: str, axes, metric: str = "AUC", level: float = 0.95):
+    """Paired bootstrap of two models: one resample per point, and the distribution of the difference.
+
+    Left: each resample's metric for model ``b`` against model ``a``; points
+    above the diagonal are resamples where ``a`` wins. Right: histogram of
+    ``a − b`` with its percentile interval shaded and 0 (no difference) marked.
+    """
+    left, right = axes
+    lo, hi = np.quantile(np.r_[boot[a], boot[b]], [0, 1])
+    pad = 0.05 * (hi - lo)
+    lo, hi = lo - pad, hi + pad
+    left.plot([lo, hi], [lo, hi], color=MUTED, linewidth=1)
+    left.scatter(boot[b], boot[a], s=8, color=INK_SECONDARY, alpha=0.35, linewidths=0)
+    left.annotate(f"{a} better", (0.04, 0.96), xycoords="axes fraction", va="top", fontsize=9, color=MUTED)
+    left.annotate(f"{b} better", (0.96, 0.04), xycoords="axes fraction", ha="right", fontsize=9, color=MUTED)
+    left.set(xlim=(lo, hi), ylim=(lo, hi), aspect="equal", xlabel=f"{metric} of {b}", ylabel=f"{metric} of {a}")
+    left.set_title("Each point: one resample")
+
+    diff = boot[a] - boot[b]
+    tail = (1 - level) / 2
+    q_lo, q_hi = np.quantile(diff, [tail, 1 - tail])
+    right.axvspan(q_lo, q_hi, color=GRID, alpha=0.6, linewidth=0, label=f"{level:.0%} interval")
+    counts, *_ = right.hist(diff, bins=40, histtype="step", linewidth=2, color=INK_SECONDARY)
+    right.set_ylim(0, 1.2 * counts.max())  # headroom for the labels
+    right.axvline(0, color=INK, linewidth=1)
+    right.annotate("no difference", (0, 1), xycoords=("data", "axes fraction"), xytext=(4, -4),
+                   textcoords="offset points", va="top", fontsize=9, color=INK_SECONDARY)
+    right.set(xlabel=f"{metric} of {a} − {metric} of {b}", ylabel="Resamples")
+    right.set_title("The paired difference")
+    right.legend(loc="upper right")
+    return axes
+
+
+def plot_intervals(table, ax=None, xlabel: str = "Difference", title: str | None = None):
+    """Estimates with confidence intervals, one row per comparison (a 'forest plot').
+
+    ``table`` has one row per comparison (labelled by its index) and the
+    columns ``difference``, ``lower`` and ``upper``. An interval that crosses
+    the vertical line at 0 is compatible with no difference.
+    """
+    ax = _ax(ax)
+    rows = np.arange(len(table))[::-1]  # first row on top
+    ax.axvline(0, color=MUTED, linewidth=1)
+    ax.errorbar(table["difference"], rows,
+                xerr=[table["difference"] - table["lower"], table["upper"] - table["difference"]],
+                color=INK_SECONDARY, linestyle="none", elinewidth=2, capsize=0, marker="o", markersize=8,
+                markeredgecolor=SURFACE, markeredgewidth=1.5)
+    ax.set_yticks(rows, table.index)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(axis="y", visible=False)
+    ax.set_ylim(-0.6, len(table) - 0.4)
+    ax.set_xlabel(xlabel)
+    if title:
+        ax.set_title(title)
+    return ax

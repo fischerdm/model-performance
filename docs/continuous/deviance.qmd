@@ -141,7 +141,7 @@ Compared with R², the deviance gives a clearer picture:
   huge claims.
 - The GBM is slightly ahead of the GLM (`{python} f"{d2['GBM']:.2%}"` against
   `{python} f"{d2['GLM']:.2%}"`). Whether a difference this small is real, and
-  not test-set noise, is a question for the model-comparison page.
+  not test-set noise, is a question for the [model-comparison page](../comparison/model-comparison.qmd).
 
 ### Is a D² this small good?
 
