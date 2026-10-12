@@ -39,7 +39,9 @@ Metrics are grouped by the question they answer rather than listed by name:
   [deviance](docs/continuous/deviance.qmd))
 - **Ranking and segmentation:** does the model separate low risks from high
   risks? ([lift charts and Lorenz curves](docs/continuous/lift-lorenz.qmd))
-- Model comparison and drift: *coming next*.
+- **Model comparison:** is one model really better, or is the gap noise?
+  ([comparing models](docs/comparison/model-comparison.qmd))
+- Drift: *coming next*.
 
 ## Working with the code
 

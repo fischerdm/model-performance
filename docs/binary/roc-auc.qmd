@@ -198,8 +198,8 @@ acted on, look at the left part of the curve, at
 
 **It is an estimate.** The test set is a sample, so AUC has sampling
 uncertainty. Before concluding that the GBM beats the GLM, we need a
-confidence interval for the difference (bootstrap or DeLong's test, on a later
-page).
+confidence interval for the difference, from a
+[bootstrap or DeLong's test](../comparison/model-comparison.qmd).
 
 ## Takeaways
 

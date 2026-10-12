@@ -213,7 +213,7 @@ while the blend's stays near 1 within the noise: in this pairing, the blend
 wins. The blend also has the highest Gini and D². Two caveats: the comparison
 is on the test set the double lift chart was read from, so a blend chosen this
 way should be confirmed on fresh data; and whether its improvement is larger
-than sampling noise is a question for the model-comparison page.
+than sampling noise is a question for the [model-comparison page](../comparison/model-comparison.qmd).
 
 ## The Lorenz curve and the Gini index
 
@@ -315,7 +315,7 @@ chart would show the gap at once. So:
 - **Small differences are noise.** The GLM and GBM differ by
   `{python} f"{gini['GBM'] - gini['GLM']:.3f}"`, far less than the test-set
   variability of a Gini on data this noisy. Testing such differences is the
-  subject of the model-comparison page.
+  subject of the [model-comparison page](../comparison/model-comparison.qmd).
 
 ## Which tool for which question
 

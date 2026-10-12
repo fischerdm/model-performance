@@ -384,3 +384,103 @@ def gini_index(y, score, weight) -> float:
     """
     lc = lorenz_curve(y, score, weight)
     return float(1 - 2 * np.trapezoid(lc["loss_share"], lc["exposure_share"]))
+
+
+# --- Model comparison --------------------------------------------------------
+
+
+def paired_bootstrap(metric, y, preds: dict, weight=None, n_boot: int = 1000, seed: int = 0) -> pd.DataFrame:
+    """Metric of each model on ``n_boot`` bootstrap resamples of the test set.
+
+    Each resample draws as many observations as the test set has, with
+    replacement, and every model is scored on the *same* resample, so the
+    differences between columns are paired. ``metric`` is called as
+    ``metric(y, pred)``, or ``metric(y, pred, weight)`` when a weight is given.
+    """
+    rng = np.random.default_rng(seed)
+    y = np.asarray(y, dtype=float)
+    preds = {name: np.asarray(p, dtype=float) for name, p in preds.items()}
+    extra = () if weight is None else (np.asarray(weight, dtype=float),)
+    rows = []
+    for _ in range(n_boot):
+        idx = rng.integers(y.size, size=y.size)
+        rows.append({name: metric(y[idx], p[idx], *(e[idx] for e in extra)) for name, p in preds.items()})
+    return pd.DataFrame(rows)
+
+
+def bootstrap_summary(estimate: float, draws, level: float = 0.95) -> pd.Series:
+    """Point estimate with the bootstrap's standard error, percentile interval and p-value.
+
+    The two-sided p-value for 'no difference' is twice the share of resamples
+    on the far side of 0 (roughly the smallest level at which the percentile
+    interval would still include 0). Counting the observed sample as one more
+    draw, (count + 1) / (B + 1), keeps it above 0: B resamples can't support a
+    p-value much below 2 / B.
+    """
+    draws = np.asarray(draws, dtype=float)
+    tail = (1 - level) / 2
+    beyond = min(np.sum(draws <= 0), np.sum(draws >= 0))
+    p = 2 * (beyond + 1) / (draws.size + 1)
+    return pd.Series(
+        {
+            "difference": estimate,
+            "std. error": draws.std(ddof=1),
+            "lower": np.quantile(draws, tail),
+            "upper": np.quantile(draws, 1 - tail),
+            "p-value": min(p, 1.0),
+        }
+    )
+
+
+def _z_test(estimate: float, se: float, level: float = 0.95) -> dict:
+    """Normal-approximation interval and two-sided p-value for an estimate with standard error ``se``."""
+    z = norm.ppf(0.5 + level / 2)
+    return {
+        "std. error": se,
+        "lower": estimate - z * se,
+        "upper": estimate + z * se,
+        "p-value": 2 * norm.sf(abs(estimate / se)),
+    }
+
+
+def delong_test(y, score_a, score_b) -> pd.Series:
+    """DeLong's test for the difference between two correlated AUCs (same cases).
+
+    Each case gets a *placement value*: for a positive, the share of negatives
+    it outscores; for a negative, the share of positives that outscore it
+    (ties count 1/2). Either set of placements averages to the AUC, and their
+    variances give the AUC's variance without resampling. Pairing enters
+    through the per-case differences of placements between the two models.
+    """
+    y = np.asarray(y).astype(bool)
+    n_pos, n_neg = y.sum(), (~y).sum()
+
+    def placements(s):
+        s = np.asarray(s, dtype=float)
+        r = rankdata(s)
+        below = r[y] - rankdata(s[y])  # negatives below each positive
+        above = n_pos - (r[~y] - rankdata(s[~y]))  # positives above each negative
+        return below / n_neg, above / n_pos
+
+    pos_a, neg_a = placements(score_a)
+    pos_b, neg_b = placements(score_b)
+    diff = pos_a.mean() - pos_b.mean()
+    var = np.var(pos_a - pos_b, ddof=1) / n_pos + np.var(neg_a - neg_b, ddof=1) / n_neg
+    return pd.Series({"AUC A": pos_a.mean(), "AUC B": pos_b.mean(), "difference": diff, **_z_test(diff, np.sqrt(var))})
+
+
+def diebold_mariano(loss_a, loss_b, weight=None) -> pd.Series:
+    """Diebold–Mariano test: is the mean loss of model A different from model B's?
+
+    Works on the per-observation *loss differential* d = loss_a − loss_b
+    (positive when model B is better). It
+    applies to any score that is an average over observations (squared error,
+    log loss, deviance), not to AUC or Gini. For independent observations it is
+    a paired z-test on d; the original version for forecasts over time replaces
+    the standard error with one robust to autocorrelation.
+    """
+    d = np.asarray(loss_a, dtype=float) - np.asarray(loss_b, dtype=float)
+    w = np.ones_like(d) if weight is None else np.asarray(weight, dtype=float)
+    mean = np.average(d, weights=w)
+    se = np.sqrt(np.sum(w**2 * (d - mean) ** 2)) / w.sum()
+    return pd.Series({"difference": mean, **_z_test(mean, se)})

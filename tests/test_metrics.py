@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from scipy import stats
 from scipy.special import expit, logit
 from sklearn import metrics as skm
 
@@ -177,3 +178,31 @@ def test_gini_index_properties(continuous):
     assert mp.gini_index(y, np.full(N, 5.0), w) == pytest.approx(0)  # constant: diagonal
     assert mp.gini_index(y, -pred, w) == pytest.approx(-g)  # reversed ranking
     assert mp.gini_index(y, y, w) > g  # sorting by the outcome itself is the best possible
+
+
+def test_delong_matches_bootstrap(binary):
+    y, p = binary
+    other = np.clip(p + rng.normal(0, 0.1, N), 0, 1)  # a correlated, noisier competitor
+    d = mp.delong_test(y, p, other)
+    assert d["AUC A"] == pytest.approx(skm.roc_auc_score(y, p))
+    assert d["AUC B"] == pytest.approx(skm.roc_auc_score(y, other))
+    boot = mp.paired_bootstrap(mp.auc_rank, y, {"A": p, "B": other}, n_boot=500)
+    assert d["std. error"] == pytest.approx((boot["A"] - boot["B"]).std(), rel=0.15)
+
+
+def test_diebold_mariano_is_paired_test(continuous):
+    y, pred, _ = continuous
+    loss_a, loss_b = (pred - y) ** 2, (1.1 * pred - y) ** 2
+    dm = mp.diebold_mariano(loss_a, loss_b)
+    t = stats.ttest_rel(loss_a, loss_b)
+    assert dm["difference"] == pytest.approx(np.mean(loss_a - loss_b))
+    assert dm["p-value"] == pytest.approx(t.pvalue, rel=0.05)
+
+
+def test_bootstrap_summary():
+    draws = np.linspace(-1, 3, 1001)  # 250 of 1001 draws at or below 0
+    s = mp.bootstrap_summary(1.0, draws, level=0.9)
+    assert s["difference"] == 1.0
+    assert (s["lower"], s["upper"]) == pytest.approx((-0.8, 2.8))
+    assert s["p-value"] == pytest.approx(2 * 252 / 1002)
+    assert mp.bootstrap_summary(1.0, np.ones(999))["p-value"] == pytest.approx(0.002)
