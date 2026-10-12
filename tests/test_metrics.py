@@ -142,3 +142,38 @@ def test_tweedie_deviance(continuous):
     assert dev == pytest.approx(skm.mean_tweedie_deviance(y, pred, power=1.9, sample_weight=w))
     d2 = mp.deviance_metrics(y, pred, np.full(N, np.average(y, weights=w)), w, 1.9)["D²"]
     assert d2 == pytest.approx(skm.d2_tweedie_score(y, pred, power=1.9, sample_weight=w))
+
+
+def test_exposure_bins(continuous):
+    _, pred, w = continuous
+    assert np.bincount(mp.exposure_bins(pred, np.ones(N), 10)).tolist() == [N // 10] * 10
+    totals = np.bincount(mp.exposure_bins(pred, w, 10), weights=w)
+    np.testing.assert_allclose(totals, w.sum() / 10, atol=w.max())
+    # Bins follow the score: every score in bin k is below every score in bin k + 1.
+    bins = mp.exposure_bins(pred, w, 10)
+    assert all(pred[bins == k].max() <= pred[bins == k + 1].min() for k in range(9))
+
+
+def test_segment_table(continuous):
+    y, pred, w = continuous
+    t = mp.segment_table(y, {"model": pred}, w, sort_by=pred)
+    assert t["exposure"].sum() == pytest.approx(w.sum())
+    # Bin averages, weighted by bin exposure, recover the overall averages.
+    assert np.average(t["actual"], weights=t["exposure"]) == pytest.approx(np.average(y, weights=w))
+    assert np.average(t["model"], weights=t["exposure"]) == pytest.approx(np.average(pred, weights=w))
+
+
+def test_gini_index_binary(binary):
+    """With a 0/1 outcome and unit weights, Gini index = (1 − positive rate) · (2·AUC − 1)."""
+    y, p = binary
+    expected = (1 - y.mean()) * (2 * skm.roc_auc_score(y, p) - 1)
+    assert mp.gini_index(y, p, np.ones(N)) == pytest.approx(expected)
+
+
+def test_gini_index_properties(continuous):
+    y, pred, w = continuous
+    g = mp.gini_index(y, pred, w)
+    assert mp.gini_index(y, 3 * pred + 10, w) == pytest.approx(g)  # ranking only
+    assert mp.gini_index(y, np.full(N, 5.0), w) == pytest.approx(0)  # constant: diagonal
+    assert mp.gini_index(y, -pred, w) == pytest.approx(-g)  # reversed ranking
+    assert mp.gini_index(y, y, w) > g  # sorting by the outcome itself is the best possible

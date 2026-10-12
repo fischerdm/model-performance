@@ -209,8 +209,8 @@ Flagging the top 1%, the GBM finds `{python} f"{t1['GBM']['lift']:.1f}"` times
 more claims than random selection would, the GLM
 `{python} f"{t1['GLM']['lift']:.1f}"` times. As the flagged share grows,
 precision falls towards the claim rate and lift towards 1. Showing lift for
-every decile of the ranking gives a **lift chart**, the subject of a later
-page.
+every decile of the ranking gives a **lift chart**, covered for pure premium
+on the [lift chart page](../continuous/lift-lorenz.qmd).
 
 ## Precision depends on the claim rate
 

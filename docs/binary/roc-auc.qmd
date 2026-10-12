@@ -132,7 +132,7 @@ $$
 It rescales AUC so that random ranking scores 0 and perfect ranking scores 1.
 The GBM's AUC of `{python} f"{auc['GBM']:.3f}"` is a Gini of
 `{python} f"{gini_from_auc(auc['GBM']):.3f}"`. The insurance Gini computed
-from a Lorenz curve, which we'll meet with lift charts, is a close relative.
+from a [Lorenz curve](../continuous/lift-lorenz.qmd) is a close relative.
 
 ## Comparing the models
 
