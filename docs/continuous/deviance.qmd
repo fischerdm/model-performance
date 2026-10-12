@@ -151,7 +151,7 @@ chance. A pricing model's job isn't to predict *which* policy will claim but
 to **separate low risks from high risks**. That ability shows up clearly in
 ranking and segmentation tools (Lorenz curves, Gini, lift and double lift
 charts), which barely react to the noise that dominates individual-level
-metrics. Those are the next pages.
+metrics. They are covered on the [next page](lift-lorenz.qmd).
 
 ## Choosing the power
 

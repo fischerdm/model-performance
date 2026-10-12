@@ -15,7 +15,9 @@ from matplotlib.colors import LinearSegmentedColormap
 from .metrics import (
     average_precision,
     calibration_bins,
+    gini_index,
     isotonic_recalibration,
+    lorenz_curve,
     pr_points,
     reliability_band,
     roc_points,
@@ -31,7 +33,7 @@ GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 
 # Fixed entity colors
-MODEL_COLORS = {"GLM": "#2a78d6", "GBM": "#eb6834", "Null": MUTED}
+MODEL_COLORS = {"GLM": "#2a78d6", "GBM": "#eb6834", "Blend": "#1baf7a", "Null": MUTED}
 CLASS_COLORS = {0: "#1baf7a", 1: "#4a3aa7"}  # outcome 0 / 1
 METRIC_COLORS = ["#1baf7a", "#4a3aa7", "#e87ba4"]  # always direct-labelled
 
@@ -303,4 +305,75 @@ def plot_residuals(y, pred, ax=None, title: str | None = None, gridsize: int = 5
     ax.set_ylabel("Residual (actual − predicted)")
     if title:
         ax.set_title(title)
+    return ax
+
+
+# --- Ranking and segmentation ----------------------------------------------
+
+
+def plot_segments(table, models, ax=None, ratio: bool = False, xlabel: str = "Decile",
+                  ylabel: str | None = None, title: str | None = None, colors: dict | None = None,
+                  legend_loc: str = "upper left"):
+    """Lift or double lift chart from a ``segment_table``.
+
+    By default shows the actual average per bin (with its 95% interval) next to
+    each model's average prediction. With ``ratio=True`` it shows actual ÷
+    predicted per model instead: 1 means the model's average is right in that
+    bin (an insurer would call it a loss ratio of 100%).
+    """
+    ax = _ax(ax)
+    colors = {**MODEL_COLORS, **(colors or {})}
+    x = table.index.to_numpy()
+    marker = dict(marker="o", markersize=7, markeredgecolor=SURFACE, markeredgewidth=1.5)
+    if ratio:
+        ax.axhline(1, color=MUTED, linewidth=1)
+        offsets = np.linspace(-0.12, 0.12, len(models)) if len(models) > 1 else [0.0]
+        for name, dx in zip(models, offsets):
+            r = table["actual"] / table[name]
+            ax.errorbar(x + dx, r, yerr=[r - table["lower"] / table[name], table["upper"] / table[name] - r],
+                        color=colors.get(name), linewidth=1.5, elinewidth=1, capsize=0, label=f"Actual ÷ {name}",
+                        **marker)
+        ax.set_ylabel(ylabel or "Actual ÷ predicted")
+        # Intervals span most of the height, so the legend goes above the plot.
+        ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=len(models))
+    else:
+        ax.errorbar(x, table["actual"], yerr=[table["actual"] - table["lower"], table["upper"] - table["actual"]],
+                    color=INK_SECONDARY, linestyle="none", elinewidth=1, capsize=0, label="Actual (95% interval)",
+                    **marker)
+        for name in models:
+            ax.plot(x, table[name], color=colors.get(name), label=f"{name} predicted", **marker)
+        ax.set_ylabel(ylabel or "Average per policy-year (EUR)")
+        ax.set_ylim(0, max(ax.get_ylim()[1], 1.05 * table["upper"].max()))
+        ax.legend(loc=legend_loc)
+    ax.set_xticks(x)
+    ax.set_xlabel(xlabel)
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+def plot_lorenz(y, preds: dict, weight, ax=None, oracle: bool = True, colors: dict | None = None):
+    """Lorenz curves (share of claim cost against share of exposure, lowest predictions first).
+
+    The diagonal is a model that doesn't separate risks (Null); the dashed
+    'oracle' curve sorts by the actual outcome, the best any model could do.
+    Gini indices are in the legend.
+    """
+    ax = _ax(ax)
+    colors = {**MODEL_COLORS, **(colors or {})}
+    ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1, label="Null / no separation (Gini 0)")
+    if oracle:
+        lc = lorenz_curve(y, y, weight)
+        ax.plot(lc["exposure_share"], lc["loss_share"], color=INK_SECONDARY, linewidth=1.5, linestyle="--",
+                label=f"Oracle: sorted by actual (Gini {gini_index(y, y, weight):.3f})")
+    for name, p in preds.items():
+        lc = lorenz_curve(y, p, weight)
+        ax.plot(lc["exposure_share"], lc["loss_share"], color=colors.get(name),
+                label=f"{name} (Gini {gini_index(y, p, weight):.3f})")
+    ax.set_xlabel("Share of exposure (lowest predicted risk first)")
+    ax.set_ylabel("Share of claim cost")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_aspect("equal")
+    ax.legend(loc="upper left")
     return ax

@@ -37,7 +37,9 @@ Metrics are grouped by the question they answer rather than listed by name:
 - **Error size:** how far off are the predictions?
   ([error metrics](docs/continuous/error-metrics.qmd),
   [deviance](docs/continuous/deviance.qmd))
-- Lift charts, model comparison and drift: *coming next*.
+- **Ranking and segmentation:** does the model separate low risks from high
+  risks? ([lift charts and Lorenz curves](docs/continuous/lift-lorenz.qmd))
+- Model comparison and drift: *coming next*.
 
 ## Working with the code
 

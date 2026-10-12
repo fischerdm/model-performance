@@ -306,3 +306,81 @@ def deviance_metrics(y, pred, null_pred, weight, power: float) -> pd.Series:
     dev = np.average(tweedie_deviance(y, pred, power), weights=weight)
     null_dev = np.average(tweedie_deviance(y, null_pred, power), weights=weight)
     return pd.Series({"mean deviance": dev, "D²": 1 - dev / null_dev})
+
+
+# --- Ranking and segmentation ----------------------------------------------
+
+
+def exposure_bins(score, weight, n_bins: int = 10) -> np.ndarray:
+    """Bin index per observation (0 = lowest scores), each bin holding the same total weight.
+
+    An observation goes to the bin containing the midpoint of its share of the
+    cumulative weight, so bins are as equal as individual weights allow.
+    """
+    score, w = np.asarray(score, dtype=float), np.asarray(weight, dtype=float)
+    order = np.argsort(score, kind="mergesort")
+    cum = np.cumsum(w[order])
+    mid = (cum - w[order] / 2) / cum[-1]
+    bins = np.empty(score.size, dtype=int)
+    bins[order] = np.minimum((mid * n_bins).astype(int), n_bins - 1)
+    return bins
+
+
+def segment_table(y, preds: dict, weight, sort_by, n_bins: int = 10, level: float = 0.95) -> pd.DataFrame:
+    """Weighted average outcome and predictions per bin of ``sort_by``: the data behind lift charts.
+
+    - Lift chart: ``sort_by`` is a model's own prediction.
+    - Double lift chart: ``sort_by`` is the ratio of two models' predictions.
+
+    The interval for the actual average uses the standard error of a weighted
+    mean, ``sqrt(Σ w²(y − ȳ)²) / Σ w``, with a normal approximation.
+    """
+    y, w = np.asarray(y, dtype=float), np.asarray(weight, dtype=float)
+    sort_by = np.asarray(sort_by, dtype=float)
+    bins = exposure_bins(sort_by, w, n_bins)
+    z = norm.ppf(0.5 + level / 2)
+    rows = []
+    for b in range(n_bins):
+        s = bins == b
+        ws, ys = w[s], y[s]
+        actual = np.average(ys, weights=ws)
+        se = np.sqrt(np.sum(ws**2 * (ys - actual) ** 2)) / ws.sum()
+        rows.append(
+            {
+                "bin": b + 1,
+                "exposure": ws.sum(),
+                "sort_min": sort_by[s].min(),
+                "sort_max": sort_by[s].max(),
+                "actual": actual,
+                "lower": actual - z * se,
+                "upper": actual + z * se,
+                **{name: np.average(np.asarray(p, dtype=float)[s], weights=ws) for name, p in preds.items()},
+            }
+        )
+    return pd.DataFrame(rows).set_index("bin")
+
+
+def lorenz_curve(y, score, weight) -> pd.DataFrame:
+    """Lorenz curve: share of total outcome against share of exposure, lowest scores first.
+
+    Observations with equal scores are grouped, so ties give a straight
+    segment instead of an arbitrary order (the Null model traces the diagonal).
+    """
+    y, w = np.asarray(y, dtype=float), np.asarray(weight, dtype=float)
+    grouped = pd.DataFrame({"score": score, "yw": y * w, "w": w}).groupby("score", sort=True).sum()
+    return pd.DataFrame(
+        {
+            "exposure_share": np.r_[0.0, grouped["w"].cumsum() / grouped["w"].sum()],
+            "loss_share": np.r_[0.0, grouped["yw"].cumsum() / grouped["yw"].sum()],
+        }
+    )
+
+
+def gini_index(y, score, weight) -> float:
+    """Gini index: twice the area between the diagonal and the Lorenz curve.
+
+    0 for a model that doesn't separate risks, larger when the low scores
+    hold a smaller share of the outcome. Depends only on the ranking.
+    """
+    lc = lorenz_curve(y, score, weight)
+    return float(1 - 2 * np.trapezoid(lc["loss_share"], lc["exposure_share"]))

@@ -31,6 +31,7 @@ website:
         contents:
           - docs/continuous/error-metrics.qmd
           - docs/continuous/deviance.qmd
+          - docs/continuous/lift-lorenz.qmd
 
 format:
   html:
