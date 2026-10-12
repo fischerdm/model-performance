@@ -26,8 +26,8 @@ _quarto.yml              site configuration and page order
 index.qmd                home page
 docs/
   foundations/           data and models
-  binary/                confusion matrix, ROC/AUC, ...
-  continuous/            error metrics, deviance, ...
+  binary/                confusion matrix, ROC/AUC, precision-recall, calibration
+  continuous/            error metrics, deviance, lift charts and Lorenz curves
 src/modelperf/
   data.py                loading and splitting the datasets
   models.py              Null / GLM / GBM per target, cached
