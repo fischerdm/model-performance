@@ -5,6 +5,8 @@ and continuous targets, model comparison and drift detection. Every method is
 applied to real models (GLM vs gradient boosting) on the French motor insurance
 dataset freMTPL2, and rendered as a [Quarto](https://quarto.org) website.
 
+**Read the site:** https://fischerdm.github.io/model-performance/
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and [Quarto](https://quarto.org/docs/get-started/)
