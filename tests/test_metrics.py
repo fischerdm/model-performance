@@ -1,6 +1,7 @@
 """Check the from-scratch metrics against scikit-learn on synthetic data."""
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy import stats
 from scipy.special import expit, logit
@@ -206,3 +207,50 @@ def test_bootstrap_summary():
     assert (s["lower"], s["upper"]) == pytest.approx((-0.8, 2.8))
     assert s["p-value"] == pytest.approx(2 * 252 / 1002)
     assert mp.bootstrap_summary(1.0, np.ones(999))["p-value"] == pytest.approx(0.002)
+
+
+def test_psi_is_symmetric_kl():
+    reference, current = rng.normal(0, 1, N), rng.normal(0.5, 1.2, N)
+    t = mp.psi_table(reference, current, n_bins=10)
+    assert t["reference"].sum() == pytest.approx(1, abs=1e-3)
+    expected = stats.entropy(t["current"], t["reference"]) + stats.entropy(t["reference"], t["current"])
+    assert mp.population_stability_index(reference, current) == pytest.approx(expected, rel=1e-3)
+    assert mp.population_stability_index(reference, reference) == pytest.approx(0)
+
+
+def test_psi_categorical():
+    reference = pd.Series(pd.Categorical(["a"] * 50 + ["b"] * 50))
+    current = pd.Series(pd.Categorical(["a"] * 80 + ["b"] * 20))
+    expected = (0.8 - 0.5) * np.log(0.8 / 0.5) + (0.2 - 0.5) * np.log(0.2 / 0.5)
+    assert mp.population_stability_index(reference, current) == pytest.approx(expected)
+
+
+def test_domain_classifier_auc():
+    same = pd.DataFrame({"x": rng.normal(0, 1, N)}), pd.DataFrame({"x": rng.normal(0, 1, N)})
+    assert mp.domain_classifier_auc(*same) == pytest.approx(0.5, abs=0.04)
+    shifted = pd.DataFrame({"x": rng.normal(0, 1, N)}), pd.DataFrame({"x": rng.normal(1, 1, N)})
+    # Two unit-variance normals one SD apart: the best possible AUC is Φ(1/√2) ≈ 0.76;
+    # a classifier fitted on a few thousand rows gets close, but not above it.
+    best = stats.norm.cdf(1 / np.sqrt(2))
+    assert best - 0.06 < mp.domain_classifier_auc(*shifted) < best + 0.01
+
+
+def test_expected_auc(calibrated):
+    y, p = calibrated
+    # Certain outcomes: the expected AUC is the actual AUC.
+    certain = (p > 0.2).astype(float)
+    s = p + rng.normal(0, 0.05, p.size)
+    assert mp.expected_auc(s, certain) == pytest.approx(skm.roc_auc_score(certain, s))
+    # Outcomes drawn from the probabilities: the realized AUC is close to the expected one.
+    assert mp.expected_auc(p, p) == pytest.approx(skm.roc_auc_score(y, p), abs=0.01)
+
+
+def test_cbpe_matches_realized(calibrated):
+    y, p = calibrated
+    half = y.size // 2
+    est = mp.cbpe(y[:half], p[:half], p[half:])
+    yc, pc = y[half:], p[half:]
+    assert est["positive rate"] == pytest.approx(yc.mean(), abs=0.005)
+    assert est["AUC"] == pytest.approx(skm.roc_auc_score(yc, pc), abs=0.015)
+    assert est["log loss"] == pytest.approx(mp.log_loss(yc, pc), rel=0.03)
+    assert est["Brier"] == pytest.approx(mp.brier_score(yc, pc), rel=0.03)

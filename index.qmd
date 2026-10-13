@@ -41,7 +41,8 @@ Metrics are grouped by the question they answer rather than listed by name:
   risks? ([lift charts and Lorenz curves](docs/continuous/lift-lorenz.qmd))
 - **Model comparison:** is one model really better, or is the gap noise?
   ([comparing models](docs/comparison/model-comparison.qmd))
-- Drift: *coming next*.
+- **Drift:** has performance changed since validation, before the outcomes
+  are in? ([drift](docs/monitoring/drift.qmd))
 
 ## Working with the code
 

@@ -31,9 +31,11 @@ docs/
   binary/                confusion matrix, ROC/AUC, precision-recall, calibration
   continuous/            error metrics, deviance, lift charts and Lorenz curves
   comparison/            paired bootstrap, DeLong and Diebold–Mariano tests
+  monitoring/            drift: PSI, domain classifier, CBPE
 src/modelperf/
   data.py                loading and splitting the datasets
   models.py              Null / GLM / GBM per target, cached
+  drift.py               simulated production batches with drift
   metrics.py             metrics implemented from their definitions
   plots.py               chart style and plotting functions
 tests/                   metrics checked against scikit-learn

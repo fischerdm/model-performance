@@ -35,6 +35,9 @@ website:
       - section: "Comparing models"
         contents:
           - docs/comparison/model-comparison.qmd
+      - section: "Monitoring"
+        contents:
+          - docs/monitoring/drift.qmd
 
 format:
   html:
