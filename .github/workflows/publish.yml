@@ -1,0 +1,29 @@
+# Publish the site to GitHub Pages on every push to main.
+# Pages are not executed here: Quarto reuses the results committed in _freeze/,
+# so CI needs neither Python nor the data. Render locally and commit _freeze/
+# before merging a page change.
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.18
+
+      - uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
