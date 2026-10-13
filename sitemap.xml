@@ -2,46 +2,46 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/foundations/data-and-models.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/binary/roc-auc.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/binary/confusion-matrix.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/continuous/lift-lorenz.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/monitoring/drift.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/index.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/comparison/model-comparison.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/continuous/error-metrics.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/continuous/deviance.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/binary/precision-recall.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
   <url>
     <loc>https://fischerdm.github.io/model-performance/docs/binary/calibration.html</loc>
-    <lastmod>2026-10-13T17:25:45.433Z</lastmod>
+    <lastmod>2026-10-13T17:40:37.935Z</lastmod>
   </url>
 </urlset>
