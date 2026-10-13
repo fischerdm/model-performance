@@ -1,375 +1,5 @@
 [
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Measuring model performance",
-    "section": "",
-    "text": "This project documents how to measure the performance of predictive models, working through every method on real models fitted to real data. Each page answers one question about a model, shows the method on our examples, and explains when it misleads.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#the-examples",
-    "href": "index.html#the-examples",
-    "title": "Measuring model performance",
-    "section": "The examples",
-    "text": "The examples\nMost pages use the French motor insurance dataset (freMTPL2, about 680,000 policies) with two targets:\n\n\n\n\n\n\n\n\nTarget\nType\nQuestion\n\n\n\n\nHasClaim\nbinary (0/1)\nWill this policy have a claim?\n\n\nPurePremium\ncontinuous, weighted by exposure\nWhat claim cost per year should we expect?\n\n\n\nFor each target we compare a GLM (the traditional baseline) with a gradient boosting machine (GBM), plus a Null model that predicts the average for everyone. A few pages also use California Housing, a continuous target with a strong signal, where standard error metrics behave as textbooks describe. See Data and models.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#how-the-pages-are-organized",
-    "href": "index.html#how-the-pages-are-organized",
-    "title": "Measuring model performance",
-    "section": "How the pages are organized",
-    "text": "How the pages are organized\nMetrics are grouped by the question they answer rather than listed by name:\n\nClassification at a threshold: is the yes/no decision right? (confusion matrix)\nDiscrimination: does the model rank cases correctly? (ROC and AUC, precision–recall)\nCalibration: do predicted probabilities match observed frequencies? (calibration and scoring rules)\nError size: how far off are the predictions? (error metrics, deviance)\nRanking and segmentation: does the model separate low risks from high risks? (lift charts and Lorenz curves)\nModel comparison: is one model really better, or is the gap noise? (comparing models)\nDrift: coming next.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#working-with-the-code",
-    "href": "index.html#working-with-the-code",
-    "title": "Measuring model performance",
-    "section": "Working with the code",
-    "text": "Working with the code\nAll metric and plotting code lives in the modelperf package (src/modelperf/) and is tested against scikit-learn. Pages only call it, so explanations and implementations stay in sync.\nuv sync                  # install the environment\nuv run pytest            # check the metrics\nuv run quarto preview    # build and serve the site locally\nThe first page you render downloads the data and fits all models (about a minute); fitted models are cached in artifacts/.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html",
-    "href": "docs/continuous/deviance.html",
-    "title": "Deviance and D²",
-    "section": "",
-    "text": "Question answered: how well do the predictions fit, measured in a way that respects the target’s distribution?\nThe previous page ended with MAE, RMSE and R² failing on pure premium. This page introduces the metric the models were actually trained on: the deviance.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html#why-squared-error-doesnt-fit",
-    "href": "docs/continuous/deviance.html#why-squared-error-doesnt-fit",
-    "title": "Deviance and D²",
-    "section": "Why squared error doesn’t fit",
-    "text": "Why squared error doesn’t fit\nSquared error treats an error of 100 EUR the same everywhere. That makes sense when every observation is equally noisy. For insurance targets, the noise grows with the expected value: a risk expected to cost 1,000 EUR a year varies far more than one expected to cost 50 EUR. In the Tweedie family of distributions, used for such targets, this is explicit:\n\\[\n\\operatorname{Var}(Y) = \\phi \\, \\mu^{p},\n\\]\nwhere \\(\\mu\\) is the expected value, \\(\\phi\\) a dispersion parameter, and the power \\(p\\) describes how fast the variance grows with the mean.\n\n\n\n\n\n\n\n\nPower \\(p\\)\nDistribution\nTypical target\n\n\n\n\n0\nNormal\nerrors of constant size (house prices, roughly)\n\n\n1\nPoisson\nclaim counts, claim frequency\n\n\n1 &lt; p &lt; 2\ncompound Poisson–Gamma\npure premium: exactly 0 often, otherwise positive amounts\n\n\n2\nGamma\nclaim severity (strictly positive amounts)\n\n\n\nOur pure premium GLM uses \\(p = 1\\.9\\).",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html#the-deviance",
-    "href": "docs/continuous/deviance.html#the-deviance",
-    "title": "Deviance and D²",
-    "section": "The deviance",
-    "text": "The deviance\nThe unit deviance \\(d(y, \\mu)\\) measures how far the prediction \\(\\mu\\) is from the outcome \\(y\\), on the scale the distribution implies. For the Tweedie family with \\(1 &lt; p &lt; 2\\):\n\\[\nd(y, \\mu) = 2 \\left( \\frac{y^{2-p}}{(1-p)(2-p)} - \\frac{y\\,\\mu^{1-p}}{1-p} + \\frac{\\mu^{2-p}}{2-p} \\right).\n\\]\nIt’s twice the log-likelihood gap between a perfect prediction and \\(\\mu\\), so minimizing the mean deviance is maximum likelihood: the same criterion the GLM is fitted with. At \\(p = 0\\) it reduces to squared error, so squared error is just the deviance for a normal distribution.\nTwo properties make it suitable for pure premium:\n\nErrors are judged relative to the expected level. Missing by 100 EUR on a risk expected to cost 50 EUR counts more than missing by 100 EUR on a risk expected to cost 2,000 EUR.\nPredictions must be positive. Predicting \\(\\mu = 0\\) for a risk that can have claims gives an infinite deviance. ‘Always 0’, which won on MAE, is ruled out.\n\n\n\nCode\nrng = np.random.default_rng(0)\n# Compound Poisson-Gamma outcomes with mean 200: claims with probability ~5%, average size ~4,000\nn_claims = rng.poisson(0.05, 200_000)\noutcomes = np.array([rng.gamma(2.0, 2000.0, k).sum() for k in n_claims])\nmu = np.linspace(20, 800, 150)\ntweedie = np.array([tweedie_deviance(outcomes, m, TWEEDIE_POWER).mean() for m in mu])\nsquared = np.array([np.mean((outcomes - m) ** 2) for m in mu])\n\nfig, ax = plt.subplots(figsize=(6, 3.8))\nfor curve, name, color in [(squared, \"squared error\", METRIC_COLORS[0]),\n                           (tweedie, f\"Tweedie deviance (p = {TWEEDIE_POWER})\", METRIC_COLORS[1])]:\n    excess = curve - curve.min()\n    scale = excess[np.argmin(np.abs(mu - 100))]\n    ax.plot(mu, excess / scale, color=color, label=name)\nax.axvline(outcomes.mean(), color=INK_SECONDARY, linewidth=1)\nax.annotate(f\"true mean {outcomes.mean():.0f}\", (outcomes.mean(), 1), xycoords=(\"data\", \"axes fraction\"),\n            xytext=(4, -4), textcoords=\"offset points\", va=\"top\", fontsize=9, color=INK_SECONDARY)\nax.set(xlabel=\"Prediction μ (EUR)\", ylabel=\"Extra loss vs best prediction\\n(relative)\", ylim=(0, 3))\nax.legend(loc=\"upper right\", bbox_to_anchor=(1, 0.88))\n\n\n\n\n\n\n\n\nFigure 1: Penalty for predicting μ when the expected value is 200 EUR: squared error (scaled to match at μ = 100) against Tweedie deviance with p = 1.9, averaged over a simulated outcome distribution with that mean.\n\n\n\n\n\nBoth losses are minimized at the true mean, so both reward predicting the mean. They differ in how they punish a miss: squared error is symmetric, so predicting 0 costs as much as predicting double the mean. The deviance punishes under-prediction much harder, because a low \\(\\mu\\) claims that large outcomes are nearly impossible.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html#d²-the-deviance-version-of-r²",
-    "href": "docs/continuous/deviance.html#d²-the-deviance-version-of-r²",
-    "title": "Deviance and D²",
-    "section": "D²: the deviance version of R²",
-    "text": "D²: the deviance version of R²\nLike R², the fraction of deviance explained compares a model with the Null model:\n\\[\nD^2 = 1 - \\frac{\\sum_i w_i\\, d(y_i, \\hat\\mu_i)}{\\sum_i w_i\\, d(y_i, \\bar y)}.\n\\]\nWith \\(p = 0\\) it equals R². Like R², it is 0 for the Null model, can be negative for a model worse than the mean, and can’t be compared across datasets.\n\npd.DataFrame({\n    m: pd.concat([deviance_metrics(y, p[m], p[\"Null\"], w, TWEEDIE_POWER),\n                  regression_metrics(y, p[m], w)[[\"bias\", \"R²\"]]])\n    for m in (\"Null\", \"GLM\", \"GBM\")\n}).round(4)\n\n\n\nTable 1: Exposure-weighted Tweedie deviance (p = 1.9) and D² on the test set.\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\nmean deviance\n34.3828\n33.9464\n33.9215\n\n\nD²\n0.0000\n0.0127\n0.0134\n\n\nbias\n-1.0014\n-1.1435\n-3.6890\n\n\nR²\n-0.0000\n0.0004\n0.0005\n\n\n\n\n\n\n\n\n\n\nCompared with R², the deviance gives a clearer picture:\n\nBoth models explain about 1.3% of the deviance, roughly 26 times their R² (0.05% for the GBM): R² was drowned out by a few huge claims.\nThe GBM is slightly ahead of the GLM (1.34% against 1.27%). Whether a difference this small is real, and not test-set noise, is a question for the model-comparison page.\n\n\nIs a D² this small good?\nYes: values like this are normal for individual insurance outcomes. Whether a given policy has a claim this year is mostly chance, and no model can predict chance. A pricing model’s job isn’t to predict which policy will claim but to separate low risks from high risks. That ability shows up clearly in ranking and segmentation tools (Lorenz curves, Gini, lift and double lift charts), which barely react to the noise that dominates individual-level metrics. They are covered on the next page.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html#choosing-the-power",
-    "href": "docs/continuous/deviance.html#choosing-the-power",
-    "title": "Deviance and D²",
-    "section": "Choosing the power",
-    "text": "Choosing the power\nThe deviance depends on \\(p\\), and models can rank differently under different powers. A quick sensitivity check:\n\n\nCode\npd.DataFrame({\n    f\"p = {pw}\": {m: deviance_metrics(y, p[m], p[\"Null\"], w, pw)[\"D²\"] for m in (\"GLM\", \"GBM\")}\n    for pw in (1.2, 1.5, 1.9)\n}).round(4)\n\n\n\n\nTable 2: D² of each model under different Tweedie powers.\n\n\n\n\n\n\n\n\n\n\np = 1.2\np = 1.5\np = 1.9\n\n\n\n\nGLM\n0.0408\n0.0411\n0.0127\n\n\nGBM\n0.0452\n0.0445\n0.0134\n\n\n\n\n\n\n\n\n\n\nHere the GBM stays ahead under every power, but the level of D² changes a lot with \\(p\\). A D² is only meaningful together with the power it was computed with. Pick \\(p\\) to match the target, ideally the power used to train the model or one estimated from the data, and keep it fixed when comparing models. If the ranking of models flips between plausible powers, neither model is clearly better.\n\n\n\n\n\n\nNoteA note on weights\n\n\n\nPure premium is a rate per policy-year, so a policy observed for a week gives a very noisy rate. Weighting each policy’s deviance by its exposure gives a one-week policy 1/52 of the weight of a full-year policy, consistent with how the models were fitted. Unweighted metrics would be dominated by short policies with extreme rates.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/deviance.html#takeaways",
-    "href": "docs/continuous/deviance.html#takeaways",
-    "title": "Deviance and D²",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nThe deviance is the error measure that matches the target’s distribution, and it’s what GLMs and GBMs actually minimize.\nFor insurance targets use Tweedie (pure premium), Poisson (frequency) or Gamma (severity) deviance, with exposure or claim-count weights.\nD² is the fraction of the Null model’s deviance explained. Small values are normal when outcomes are mostly chance.\nWhen individual outcomes are this noisy, ranking and segmentation measures show a model’s value better than any average error.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Deviance and D²"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html",
-    "href": "docs/comparison/model-comparison.html",
-    "title": "Comparing models",
-    "section": "",
-    "text": "Question answered: is one model really better than another, or did the test set happen to favour it?\nEvery metric on the earlier pages was computed on one test set of 169,504 policies. A different sample of policies would have given slightly different values, so each metric is an estimate with sampling uncertainty. When two models are close, the question is whether their gap is larger than that uncertainty. This page covers three ways to answer it:\nIt ends by settling a question left open on the lift chart page: is the GLM–GBM blend’s improvement real?",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#compare-the-difference-not-two-intervals",
-    "href": "docs/comparison/model-comparison.html#compare-the-difference-not-two-intervals",
-    "title": "Comparing models",
-    "section": "Compare the difference, not two intervals",
-    "text": "Compare the difference, not two intervals\nBoth models are scored on the same policies. That matters: a test set that happens to contain many easy-to-rank policies flatters both models at once. Most of the sampling noise is shared, and it cancels in the difference.\nThe tempting shortcut, computing an interval for each model and checking whether they overlap, ignores this. It treats the two estimates as independent and overstates the uncertainty of the difference, often by a large factor. The right approach measures the uncertainty of the difference itself, on paired data. All three methods below do that.",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#the-paired-bootstrap",
-    "href": "docs/comparison/model-comparison.html#the-paired-bootstrap",
-    "title": "Comparing models",
-    "section": "The paired bootstrap",
-    "text": "The paired bootstrap\nThe bootstrap estimates sampling uncertainty by imitating the sampling:\n\ndraw a resample of the test set: as many policies as it has, drawn at random with replacement (some appear twice, others not at all);\nscore both models on the same resample and record their difference;\nrepeat many times (here 1,000).\n\nThe spread of the recorded differences shows how much the difference would vary from one test set to another. Its 2.5% and 97.5% quantiles give a 95% percentile interval.\nHere is the AUC of the two HasClaim models from the ROC page:\n\nboot = paired_bootstrap(auc_rank, y, {m: b[m] for m in (\"GLM\", \"GBM\")}, n_boot=N_BOOT)\n\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.4))\nplot_paired_bootstrap(boot, \"GBM\", \"GLM\", axes)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Paired bootstrap of the AUC on the test set. Left: GBM against GLM AUC, one point per resample. Right: distribution of the difference GBM − GLM, with its 95% percentile interval shaded.\n\n\n\n\n\nThe left panel shows why pairing matters. From one resample to the next, the AUCs move together (correlation 0.88): a resample that is easy for the GLM is easy for the GBM too. Each AUC on its own has a standard error of about 0.0033, but their difference only 0.0016. Treating the models as independent would give 0.0047, overstating the uncertainty 2.9 times.\n\n\nCode\npd.DataFrame({\n    **{m: {\"AUC\": auc[m], \"std. error\": se[m], \"lower\": boot[m].quantile(0.025), \"upper\": boot[m].quantile(0.975)}\n       for m in (\"GLM\", \"GBM\")},\n    \"GBM − GLM\": boot_auc.rename({\"difference\": \"AUC\"}).drop(\"p-value\"),\n}).T.round(4)\n\n\n\n\nTable 1: AUC of each model and of their difference, with bootstrap standard errors and 95% percentile intervals.\n\n\n\n\n\n\n\n\n\n\nAUC\nstd. error\nlower\nupper\n\n\n\n\nGLM\n0.6943\n0.0033\n0.6875\n0.7003\n\n\nGBM\n0.7127\n0.0033\n0.7058\n0.7191\n\n\nGBM − GLM\n0.0184\n0.0016\n0.0153\n0.0215\n\n\n\n\n\n\n\n\n\n\nThe whole interval for GBM − GLM lies above 0: not one of the 1,000 resamples had the GLM ahead. The GBM ranks better, and not by chance.\n\n\n\n\n\n\nNoteWhy the bootstrap works, and when it doesn’t\n\n\n\nThe bootstrap treats the test set as a stand-in for the population and resamples from it. It works for any metric you can compute, however complicated (AUC, Gini, a lift ratio, the precision in the top 5%), which makes it the default tool. It needs:\n\nIndependent observations. Resampling single policies assumes each is a separate draw. With grouped data (several policies per customer) or time series, resample whole groups or blocks instead.\nEnough resamples. 1,000 is plenty for a 95% interval. Small p-values need more: with B resamples a p-value can’t go much below 2/B.\nTime. Every resample recomputes the metric for every model.",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#delongs-test-for-auc",
-    "href": "docs/comparison/model-comparison.html#delongs-test-for-auc",
-    "title": "Comparing models",
-    "section": "DeLong’s test for AUC",
-    "text": "DeLong’s test for AUC\nFor AUC there is a formula that gives the same answer without resampling. DeLong, DeLong and Clarke-Pearson (1988) start from the reading of AUC on the ROC page: the share of (claim, no-claim) pairs that the model orders correctly. That share is an average over pairs, so it splits into a contribution per policy, its placement value:\n\nfor a policy with a claim: the share of no-claim policies it outscores;\nfor a policy without a claim: the share of claim policies that outscore it\n\n(ties count ½). Both sets of placement values average to the AUC, and their variances give the variance of the AUC. For two models, the same computation on the per-policy differences of their placement values gives the variance of the AUC difference, with the pairing built in:\n\\[\n\\operatorname{Var}(\\widehat{\\text{AUC}}_A - \\widehat{\\text{AUC}}_B)\n= \\frac{\\operatorname{Var}(V^A_{1} - V^B_{1})}{n_1}\n+ \\frac{\\operatorname{Var}(V^A_{0} - V^B_{0})}{n_0},\n\\]\nwhere \\(V_1\\) are the placement values of the \\(n_1\\) claim policies and \\(V_0\\) those of the \\(n_0\\) no-claim policies. The test statistic is the difference divided by its standard error, compared with the normal distribution.\n\ndelong = delong_test(y, b[\"GBM\"], b[\"GLM\"])\ncomparison_table({\"DeLong\": delong, \"Paired bootstrap\": boot_auc})\n\n\n\nTable 2: AUC of GBM − GLM: DeLong’s test and the paired bootstrap.\n\n\n\n\n\n\n\n\n\n\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nDeLong\n0.01844\n0.001649\n[0.01521, 0.02167]\n&lt; 0.001\n\n\nPaired bootstrap\n0.01844\n0.001634\n[0.01533, 0.02152]\n0.002\n\n\n\n\n\n\n\n\n\n\nThe two methods agree closely: DeLong’s standard error is 0.00165, the bootstrap’s 0.00163. DeLong’s p-value can go far below anything 1,000 resamples could show, and it takes a fraction of a second. For AUC alone, DeLong is the standard choice. For other metrics, use the bootstrap.",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#the-dieboldmariano-test-for-losses",
-    "href": "docs/comparison/model-comparison.html#the-dieboldmariano-test-for-losses",
-    "title": "Comparing models",
-    "section": "The Diebold–Mariano test for losses",
-    "text": "The Diebold–Mariano test for losses\nLog loss, the Brier score, squared error and deviance are all averages of a loss per observation. Comparing two models on such a metric is comparing two averages over the same observations. Diebold and Mariano (1995) test this through the loss differential of each observation,\n\\[\nd_i = L(y_i, \\hat y^A_i) - L(y_i, \\hat y^B_i),\n\\]\nwhose average is the difference in the metric. If the models are equally good, the \\(d_i\\) average to 0 apart from noise. The test divides \\(\\bar d\\) by its standard error, \\(\\text{sd}(d) / \\sqrt n\\), and compares the result with the normal distribution. With weights (such as exposure) both the average and its standard error are weighted.\nFor independent observations this is simply a paired test on the losses. The name comes from forecasting, where the observations form a time series: there the standard error must allow for autocorrelation between consecutive \\(d_i\\) (a Newey–West standard error), which is the original test’s real contribution.\n\np_glm, p_gbm = b[\"GLM\"].to_numpy(), b[\"GBM\"].to_numpy()\nlog_loss_per_policy = lambda p: -(y * np.log(p) + (1 - y) * np.log(1 - p))\ncomparison_table({\n    \"log loss\": diebold_mariano(log_loss_per_policy(p_glm), log_loss_per_policy(p_gbm)),\n    \"Brier score\": diebold_mariano((p_glm - y) ** 2, (p_gbm - y) ** 2),\n})\n\n\n\nTable 3: Diebold–Mariano tests for HasClaim: GLM loss − GBM loss (positive means the GBM is better).\n\n\n\n\n\n\n\n\n\n\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nlog loss\n0.003199\n0.0002108\n[0.002786, 0.003612]\n&lt; 0.001\n\n\nBrier score\n0.0004868\n4.17e-05\n[0.0004051, 0.0005686]\n&lt; 0.001\n\n\n\n\n\n\n\n\n\n\nThe GBM’s log loss is 2.2% lower than the GLM’s, a small relative gain but measured very precisely: on a large test set even small differences in an average loss are easy to detect. The probabilities agree with the ranking from the AUC tests. The GBM is better on both.\nTwo things the Diebold–Mariano test can’t do:\n\nAUC and Gini are not averages of per-observation losses. They depend on pairs or on the ranking of the whole test set, so they have no loss differential. Use DeLong or the bootstrap.\nIt compares scores, not truth. A significant difference in log loss says one model’s probabilities are closer to the outcomes on average. It says nothing about where: for that, look at calibration plots and double lift charts.",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#is-the-blends-improvement-real",
-    "href": "docs/comparison/model-comparison.html#is-the-blends-improvement-real",
-    "title": "Comparing models",
-    "section": "Is the blend’s improvement real?",
-    "text": "Is the blend’s improvement real?\nThe lift chart page found that the GLM and the GBM for pure premium each detect mispricing in the other, and that their geometric mean beats both. But all three Gini indices lay within about 0.015 of each other, on a target where a few large claims dominate everything. Time to test.\nOne detail first. On the lift chart page, the blend was rescaled so that its average on the test set matched the actual average. That uses the test outcomes, which would flatter the blend’s deviance. Here the scale factor comes from the training set, so nothing about the blend is fitted on the test data. (The Gini doesn’t depend on the scale, so it is unchanged.)\n\npp = pure_premium_predictions()\nyp, w = pp[\"y\"].to_numpy(), pp[\"w\"].to_numpy()\n\ntrain, fitted = train_test().train, load_models()[\"pure_premium\"]\nglm_train, gbm_train = (fitted[m].predict(train[FEATURES]) for m in (\"GLM\", \"GBM\"))\nscale = np.average(train[\"PurePremium\"], weights=train[\"Exposure\"]) / np.average(\n    np.sqrt(glm_train * gbm_train), weights=train[\"Exposure\"]\n)\nscores = {m: pp[m].to_numpy() for m in (\"GLM\", \"GBM\")}\nscores[\"Blend\"] = scale * np.sqrt(scores[\"GLM\"] * scores[\"GBM\"])\n\nWe compare all three pairs on two metrics:\n\nthe Gini index, a ranking metric with no per-policy loss: paired bootstrap, resampling policies together with their exposure;\nD², the share of the Null model’s Tweedie deviance explained: the Diebold–Mariano test on the per-policy deviance, weighted by exposure. Since all models share the same Null deviance, a difference in D² is a difference in mean deviance divided by the Null deviance.\n\n\npairs = [(\"GBM\", \"GLM\"), (\"Blend\", \"GLM\"), (\"Blend\", \"GBM\")]\ngini = {m: gini_index(yp, s, w) for m, s in scores.items()}\ngini_boot = paired_bootstrap(gini_index, yp, scores, w, n_boot=N_BOOT)\ngini_tests = {f\"{a} − {c}\": bootstrap_summary(gini[a] - gini[c], gini_boot[a] - gini_boot[c]) for a, c in pairs}\n\ndeviance = {m: tweedie_deviance(yp, s, TWEEDIE_POWER) for m, s in scores.items()}\nnull_deviance = np.average(tweedie_deviance(yp, pp[\"Null\"], TWEEDIE_POWER), weights=w)\nd2_tests = {}\nfor a, c in pairs:\n    dm = diebold_mariano(deviance[c], deviance[a], w)  # positive: model a has lower deviance\n    scaled = [\"difference\", \"std. error\", \"lower\", \"upper\"]\n    d2_tests[f\"{a} − {c}\"] = pd.concat([dm[scaled] / null_deviance, dm[[\"p-value\"]]])\n\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 3.2), sharey=True)\nplot_intervals(pd.DataFrame(gini_tests).T, ax=axes[0], xlabel=\"Difference in Gini index\", title=\"Gini (ranking)\")\nplot_intervals(pd.DataFrame(d2_tests).T, ax=axes[1], xlabel=\"Difference in D²\", title=\"D² (deviance)\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Differences in Gini index (paired bootstrap) and D² (Diebold–Mariano) between the pure premium models, with 95% intervals. An interval crossing 0 is compatible with no difference.\n\n\n\n\n\n\n\nCode\npd.concat({\"Gini (bootstrap)\": comparison_table(gini_tests, \".3f\"),\n           \"D² (Diebold–Mariano)\": comparison_table(d2_tests, \".4f\")}, axis=1)\n\n\n\n\nTable 4: Pure premium: differences between the models, test set.\n\n\n\n\n\n\n\n\n\n\nGini (bootstrap)\nD² (Diebold–Mariano)\n\n\n\ndifference\nstd. error\n95% interval\np-value\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nGBM − GLM\n0.002\n0.014\n[-0.025, 0.028]\n0.913\n0.0007\n0.0015\n[-0.0021, 0.0036]\n0.619\n\n\nBlend − GLM\n0.015\n0.006\n[0.004, 0.027]\n0.018\n0.0020\n0.0008\n[0.0004, 0.0035]\n0.012\n\n\nBlend − GBM\n0.013\n0.008\n[-0.001, 0.030]\n0.084\n0.0012\n0.0007\n[-0.0002, 0.0027]\n0.093\n\n\n\n\n\n\n\n\n\n\nThree conclusions, from clear to uncertain:\n\nGBM against GLM: no detectable difference. The Gini difference is +0.002 with an interval from -0.025 to 0.028, and the D² difference is just as inconclusive (p = 0.619). The GBM’s clearly better AUC for HasClaim does not carry over to pure premium, where claim sizes add a large amount of noise.\nBlend against GLM: likely better. Both intervals exclude 0 (p = 0.018 for the Gini, 0.012 for D²). That is good evidence, though not overwhelming (see the next section).\nBlend against GBM: suggestive, not established. Both intervals include 0: the Gini gain of 0.013 has p = 0.084, the D² gain p = 0.093.\n\nThe pairing is again what makes any of this detectable. Each Gini on its own has a bootstrap standard error of about 0.028, so the per-model intervals overlap almost completely, yet the blend’s difference from the GLM has a standard error of only 0.006. The blend is built from the GLM and the GBM, so its ranking is close to both, and most of the noise cancels.\nWhy are the intervals so wide? The test set has only 6,236 policies with a claim, and claim costs range over several orders of magnitude. For the deviance comparison of blend and GBM, the 170 policies that contribute most (the top 0.1%) account for 96% of the variance of the loss differential. A handful of large claims decide the result, so the test is far less precise than the size of the test set suggests.\n\nBefore declaring a winner\nSix tests, not one. This section ran three comparisons on two metrics. With six chances, one p-value below 0.05 is less convincing than it looks. The simplest correction (Bonferroni) asks for p below 0.05 / 6 ≈ 0.008 for each test, and neither blend result passes it. The blend’s gain over the GLM is still the most credible finding: both metrics point the same way, and the double lift chart explained why blending should help before we tested it. But it should be confirmed on fresh data before anyone relies on it.\nThe blend was suggested by the test set. We tried it because the double lift chart, drawn on these same test policies, pointed to it. A 50/50 blend has no tuned parameter and its scale comes from the training data, so the risk of having fitted the test set is small. Had we tuned the blend’s weight on the test set, its test-set score would be optimistic and the tests above invalid. The clean procedure: choose the blend on a validation set, or on cross-validation folds of the training data, and test once on held-out data.\nStatistical is not practical significance. A p-value says whether a difference is distinguishable from noise, not whether it matters. The GBM’s 2.2% lower log loss is overwhelmingly significant but may not justify replacing a GLM that regulators and underwriters understand. Report the interval for the difference, and judge whether its whole range would change a decision.\n\n\n\n\n\n\nNoteWhat these tests leave out: the training sample\n\n\n\nAll three methods resample the test set. They answer: ‘are these two fitted models different on the population the test set comes from?’ That is the right question when deciding which fitted model to deploy. They ignore that training on a different sample would have produced different models. To ask whether one modelling approach beats another (GBMs against GLMs in general, on this kind of data), repeat the fitting across cross-validation folds or repeated splits, and use a test that accounts for the overlap between training sets, such as the corrected resampled t-test of Nadeau and Bengio (2003).",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#which-test-for-which-metric",
-    "href": "docs/comparison/model-comparison.html#which-test-for-which-metric",
-    "title": "Comparing models",
-    "section": "Which test for which metric",
-    "text": "Which test for which metric\n\n\n\n\n\n\n\n\nMetric\nAverage of a loss per observation?\nTest\n\n\n\n\nAUC\nno (depends on pairs)\nDeLong; or paired bootstrap\n\n\nGini index, lift ratio, top-k precision\nno (depends on the ranking)\npaired bootstrap\n\n\nLog loss, Brier score, deviance, MSE, MAE\nyes\nDiebold–Mariano (paired test on the loss differential); or paired bootstrap\n\n\nD², R² (against the same Null model)\nratio of averages\nDiebold–Mariano on the deviance or squared error\n\n\nAny metric, observations over time\n—\nDiebold–Mariano with a Newey–West standard error; block bootstrap\n\n\nAny metric, grouped observations\n—\nbootstrap that resamples whole groups",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/comparison/model-comparison.html#takeaways",
-    "href": "docs/comparison/model-comparison.html#takeaways",
-    "title": "Comparing models",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nA metric computed on a test set is an estimate. Before preferring one model, check whether the gap is larger than its sampling uncertainty.\nPair the comparison. Both models are scored on the same observations, so test the difference directly. Overlapping per-model intervals say little: here the paired standard error was 2.9 times smaller than the unpaired one for AUC.\nThe paired bootstrap works for any metric. DeLong’s test gives the same answer for AUC instantly. The Diebold–Mariano test handles any average loss, such as log loss or deviance.\nFor HasClaim, the GBM beats the GLM beyond doubt. For pure premium, GBM and GLM are indistinguishable. The blend is likely better than the GLM (p = 0.018 and 0.012, not robust to a correction for multiple tests), and its edge over the GBM is suggestive but not established on this test set.\nWatch for multiple comparisons, for choices made on the test set, and for the difference between statistical and practical significance.",
-    "crumbs": [
-      "Comparing models",
-      "Comparing models"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html",
-    "href": "docs/binary/precision-recall.html",
-    "title": "Precision–recall curves",
-    "section": "",
-    "text": "Question answered: of the cases the model flags, how many are real positives, and how many of the real positives does it find?",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#why-look-beyond-roc",
-    "href": "docs/binary/precision-recall.html#why-look-beyond-roc",
-    "title": "Precision–recall curves",
-    "section": "Why look beyond ROC",
-    "text": "Why look beyond ROC\nThe ROC curve measures false alarms relative to all negatives: the false positive rate is FP / (FP + TN). With 96.3% of policies without a claim, that denominator is huge, and a small false positive rate can hide a large number of false alarms:\nAt a threshold of 0.1, the GBM has a false positive rate of only 3.3%: a point far to the left on the ROC curve. But that is 5,412 false alarms against 1,180 correctly flagged claims, so only 18% of the flagged policies actually have a claim.\nPrecision relates false alarms to true hits instead of to all negatives, so it shows directly what happens among the flagged cases. That makes it the natural metric when positives are rare and attention goes to the cases the model flags: fraud checks, claim reviews, medical screening, marketing campaigns.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#the-precisionrecall-curve",
-    "href": "docs/binary/precision-recall.html#the-precisionrecall-curve",
-    "title": "Precision–recall curves",
-    "section": "The precision–recall curve",
-    "text": "The precision–recall curve\nThe PR curve uses the same threshold sweep as the ROC curve, but plots\n\nrecall (true positive rate: the share of all claims we flag) on the x-axis, against\nprecision (the share of flagged policies with a claim) on the y-axis.\n\nStarting from a very high threshold, only the highest-risk policies are flagged: recall is small and, for a good model, precision is high. Lowering the threshold raises recall and, usually, lowers precision, until everything is flagged: recall 1 and precision equal to the overall claim rate.\n\n\nCode\nax = plot_pr(y, {m: b[m] for m in models}, ylim=0.5)\n\n\n\n\n\n\n\n\nFigure 1: Precision–recall curves on the test set. Thin gray curves connect points with the same F1 score.\n\n\n\n\n\nThree things differ from a ROC plot:\n\nThe baseline is the claim rate, not a diagonal. Flagging at random gives a precision equal to the claim rate (3.7%) at every recall.\nThe curve isn’t monotone. Precision can go up or down when the threshold drops, so the curve is jagged, especially on the left where few policies are flagged and each one changes precision noticeably.\nThe left part matters most. It shows the highest-risk policies, which is where a review or intervention would start. Here the GBM clearly beats the GLM, even though their ROC curves were close.\n\nThe gray curves connect points of equal F1 score, the harmonic mean of precision and recall. The best F1 the GBM reaches is 0.185 (at threshold 0.10), against 0.153 for the GLM. Low values like these are typical for rare events. F1 is only a convenient summary: it weights precision and recall equally, which rarely matches the actual costs of misses and false alarms.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#average-precision",
-    "href": "docs/binary/precision-recall.html#average-precision",
-    "title": "Precision–recall curves",
-    "section": "Average precision",
-    "text": "Average precision\nAverage precision (AP) condenses the PR curve into one number: the precision at each threshold, weighted by how much recall that threshold adds,\n\\[\n\\text{AP} = \\sum_k (R_k - R_{k-1})\\, P_k,\n\\]\nwhere \\(R_k\\) and \\(P_k\\) are recall and precision after lowering the threshold past the \\(k\\)-th distinct score. The Null model’s AP equals the claim rate.\nUsing the same ten toy policies as on the ROC page:\n\ntoy_y = np.array([1, 1, 0, 1, 0, 0, 1, 0, 0, 0])\ntoy_p = np.array([0.9, 0.8, 0.7, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])\ntoy = pr_points(toy_y, toy_p)\ntoy[\"AP contribution\"] = np.diff(np.r_[0, toy[\"recall\"]]) * toy[\"precision\"]\ntoy.round(3)\n\n\n\nTable 1: Precision and recall of the ten toy policies, and each threshold’s contribution to AP.\n\n\n\n\n\n\n\n\n\n\nthreshold\nrecall\nprecision\nAP contribution\n\n\n\n\n0\n0.90\n0.25\n1.000\n0.250\n\n\n1\n0.80\n0.50\n1.000\n0.250\n\n\n2\n0.70\n0.50\n0.667\n0.000\n\n\n3\n0.60\n0.75\n0.750\n0.188\n\n\n4\n0.55\n0.75\n0.600\n0.000\n\n\n5\n0.50\n0.75\n0.500\n0.000\n\n\n6\n0.40\n1.00\n0.571\n0.143\n\n\n7\n0.30\n1.00\n0.500\n0.000\n\n\n8\n0.20\n1.00\n0.444\n0.000\n\n\n9\n0.10\n1.00\n0.400\n0.000\n\n\n\n\n\n\n\n\n\n\nOnly the thresholds that add a claim contribute, each with weight 1/4. The AP is 0.830: on average, when the threshold passes a policy with a claim, 83% of the flagged policies have a claim.\n\n\n\n\n\n\nWarningDon’t use the trapezoidal area\n\n\n\nComputing the area under the PR curve with the trapezoidal rule (as for ROC) connects the points with straight lines. Between two PR points, precision does not change linearly, so the result is off, in either direction, and it also depends on which starting point is assumed at recall 0. On the toy example it gives 0.811 instead of 0.830. With many distinct scores the gap shrinks, but AP is the well-defined summary: average_precision_score in scikit-learn, whereas sklearn.metrics.auc on a PR curve is the trapezoidal version.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#roc-and-pr-tell-different-stories",
-    "href": "docs/binary/precision-recall.html#roc-and-pr-tell-different-stories",
-    "title": "Precision–recall curves",
-    "section": "ROC and PR tell different stories",
-    "text": "ROC and PR tell different stories\n\n\nCode\npd.DataFrame({\n    \"AUC\": auc,\n    \"Average precision\": ap,\n    \"AP / claim rate\": {m: ap[m] / rate for m in models},\n}).round(3)\n\n\n\n\nTable 2: Ranking metrics of both models. ‘AP / claim rate’ shows how many times better than random the average precision is.\n\n\n\n\n\n\n\n\n\n\nAUC\nAverage precision\nAP / claim rate\n\n\n\n\nGLM\n0.694\n0.093\n2.534\n\n\nGBM\n0.713\n0.116\n3.152\n\n\n\n\n\n\n\n\n\n\nThe GBM’s AUC is 0.018 higher than the GLM’s, a modest 3%. Its average precision is 24% higher. Both metrics summarize the same ranking, but they weight it differently:\n\nAUC weighs all pairs of a claim and a non-claim equally, wherever they are in the ranking.\nAP weighs the top of the ranking most: a claim ranked first raises precision at every later threshold.\n\nThe GBM’s advantage is concentrated in its highest-risk predictions, so AP shows it more clearly.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#precision-and-lift-in-the-top-k",
-    "href": "docs/binary/precision-recall.html#precision-and-lift-in-the-top-k",
-    "title": "Precision–recall curves",
-    "section": "Precision and lift in the top k%",
-    "text": "Precision and lift in the top k%\nIn practice, capacity is often fixed: ‘we can review 5% of policies’. Then the relevant question is how good the top 5% of the ranking is. Two measures answer it:\n\nprecision at k%: the share of flagged policies with a claim, and\nlift at k%: precision divided by the overall claim rate, i.e. how many times more claims the flagged group contains than a random group of the same size.\n\n\n\nCode\nshares = [0.01, 0.05, 0.10, 0.20]\ntop = pd.concat(\n    {m: pd.DataFrame({f\"top {s:.0%}\": top_share_metrics(y, b[m], s) for s in shares}).T for m in models},\n    axis=1,\n)\ntop.round(3)\n\n\n\n\nTable 3: Flagging the k% of policies with the highest predicted probability.\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\n\n\n\nprecision\nrecall\nlift\nprecision\nrecall\nlift\n\n\n\n\ntop 1%\n0.206\n0.056\n5.609\n0.282\n0.077\n7.677\n\n\ntop 5%\n0.128\n0.173\n3.467\n0.158\n0.214\n4.284\n\n\ntop 10%\n0.104\n0.283\n2.832\n0.117\n0.318\n3.175\n\n\ntop 20%\n0.080\n0.432\n2.162\n0.084\n0.455\n2.277\n\n\n\n\n\n\n\n\n\n\nFlagging the top 1%, the GBM finds 7.7 times more claims than random selection would, the GLM 5.6 times. As the flagged share grows, precision falls towards the claim rate and lift towards 1. Showing lift for every decile of the ranking gives a lift chart, covered for pure premium on the lift chart page.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#precision-depends-on-the-claim-rate",
-    "href": "docs/binary/precision-recall.html#precision-depends-on-the-claim-rate",
-    "title": "Precision–recall curves",
-    "section": "Precision depends on the claim rate",
-    "text": "Precision depends on the claim rate\nPrecision has a property that matters a lot in practice: unlike the ROC curve, it depends on the base rate. At any threshold,\n\\[\n\\text{precision} = \\frac{\\pi \\cdot \\text{TPR}}{\\pi \\cdot \\text{TPR} + (1 - \\pi) \\cdot \\text{FPR}},\n\\]\nwhere \\(\\pi\\) is the share of positives. TPR and FPR are properties of the model alone. Precision mixes them with \\(\\pi\\). To see the effect, we keep all policies with a claim and randomly drop policies without a claim until the claim rate reaches 10%, 20% and 50%. The model and its ranking don’t change.\n\nrng = np.random.default_rng(0)\npos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)\nsamples = {}\nfor target in (rate, 0.10, 0.20, 0.50):\n    n_neg = min(len(neg), int(len(pos) * (1 - target) / target))\n    idx = np.r_[pos, rng.choice(neg, n_neg, replace=False)]\n    samples[f\"{target:.1%}\"] = (y.to_numpy()[idx], b[\"GBM\"].to_numpy()[idx])\n\n\n\nCode\nramp = [\"#86b6ef\", \"#3987e5\", \"#1c5cab\", \"#0d366b\"]  # light to dark: rising claim rate\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.6))\naxes[0].plot([0, 1], [0, 1], color=MUTED, linewidth=1)\nfor (label, (ys, ps)), color in zip(samples.items(), ramp):\n    roc, pr = roc_points(ys, ps), pr_points(ys, ps)\n    axes[0].plot(roc[\"fpr\"], roc[\"tpr\"], color=color, label=f\"claim rate {label} (AUC {auc_rank(ys, ps):.3f})\")\n    axes[1].plot(np.r_[0, pr[\"recall\"]], np.r_[pr[\"precision\"].iloc[0], pr[\"precision\"]],\n                 drawstyle=\"steps-pre\", color=color, label=f\"claim rate {label} (AP {average_precision(ys, ps):.3f})\")\naxes[0].set(xlabel=\"False positive rate\", ylabel=\"True positive rate\", xlim=(0, 1), ylim=(0, 1.01), aspect=\"equal\")\naxes[1].set(xlabel=\"Recall\", ylabel=\"Precision\", xlim=(0, 1), ylim=(0, 1.01))\naxes[0].legend(loc=\"lower right\")\naxes[1].legend(loc=\"upper right\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: The same GBM evaluated at different claim rates (by subsampling policies without a claim). Left: ROC curves. Right: precision–recall curves.\n\n\n\n\n\nThe ROC curves lie on top of each other: AUC doesn’t change. The PR curves rise with the claim rate, and AP climbs from 0.12 to 0.71. Same model, same ranking, different AP. This has practical consequences:\n\nDon’t compare AP across datasets, segments or time periods with different base rates. A higher AP may only mean more positives. Report the base rate next to every AP, or report AP / base rate.\nBalanced test sets inflate precision. Undersampling negatives, common in fraud and medical studies, makes precision look far better than it will be in production.\nPrecision drifts when the base rate drifts. If the claim rate drops next year, the precision of the same model at the same threshold drops too, even though nothing about the model has changed. This is one reason to monitor the base rate along with model metrics.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#roc-or-pr",
-    "href": "docs/binary/precision-recall.html#roc-or-pr",
-    "title": "Precision–recall curves",
-    "section": "ROC or PR?",
-    "text": "ROC or PR?\nThe two curves contain the same information (given the base rate, every ROC point maps to exactly one PR point), but they emphasize different things:\n\n\n\n\n\n\n\n\n\nROC / AUC\nPR / AP\n\n\n\n\nFocus\nthe whole ranking, both classes\nthe top of the ranking, positive class\n\n\nFalse alarms measured relative to\nall negatives\ntrue hits\n\n\nDepends on base rate\nno\nyes\n\n\nRandom baseline\n0.5\nbase rate\n\n\nGood for\ncomparing rankings across populations; when both error types matter\nrare positives where only the flagged cases are acted on\n\n\n\nIt’s often claimed that AP is ‘the right metric for imbalanced data’. That’s too simple. Imbalance alone doesn’t make AUC wrong. Recent work (McDermott et al., 2024) shows that AP favors improvements at the top of the ranking and can favor models that work best for the subgroups with the highest base rates. Choose by the question: use AUC when the whole ranking matters, AP or precision at k% when only the top of the ranking is acted on, and report the base rate with any precision-based metric.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/precision-recall.html#takeaways",
-    "href": "docs/binary/precision-recall.html#takeaways",
-    "title": "Precision–recall curves",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nPrecision relates false alarms to true hits, which is what matters when positives are rare and only flagged cases are acted on.\nThe PR curve’s baseline is the base rate. Average precision is its correct summary; don’t use the trapezoidal area.\nAP weights the top of the ranking. Here it shows the GBM’s advantage (24%) much more clearly than AUC (3%).\nWith fixed capacity, report precision and lift at k%.\nPrecision and AP depend on the base rate. Never compare them across populations with different base rates, and watch them change when the base rate drifts.",
-    "crumbs": [
-      "Binary outcomes",
-      "Precision–recall curves"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html",
-    "href": "docs/binary/confusion-matrix.html",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "",
-    "text": "Question answered: if we turn the model’s probabilities into yes/no decisions, how good are those decisions?",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#from-probabilities-to-decisions",
-    "href": "docs/binary/confusion-matrix.html#from-probabilities-to-decisions",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "From probabilities to decisions",
-    "text": "From probabilities to decisions\nOur models predict a probability of a claim. Many uses need a decision instead: inspect this policy or not, refer it to underwriting or not. The usual way to get one is to pick a threshold \\(t\\) and predict\n\\[\n\\hat y = \\begin{cases} 1 & \\text{if } \\hat p \\ge t \\\\ 0 & \\text{otherwise.} \\end{cases}\n\\]\nEvery metric on this page evaluates the model together with a threshold. Change the threshold and all of them change.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#the-confusion-matrix",
-    "href": "docs/binary/confusion-matrix.html#the-confusion-matrix",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "The confusion matrix",
-    "text": "The confusion matrix\nComparing decisions with outcomes gives four kinds of cases:\n\n\n\n\n\n\n\n\n\nPredicted 0\nPredicted 1\n\n\n\n\nActual 0\ntrue negative (TN)\nfalse positive (FP), ‘false alarm’\n\n\nActual 1\nfalse negative (FN), ‘miss’\ntrue positive (TP)\n\n\n\nHere is the GBM on the 169,504 test policies at the conventional threshold of 0.5 and at a much lower threshold of 0.05:\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(9, 3.8))\nplot_confusion_matrix(c_half, ax=axes[0], title=\"Threshold 0.5\")\nplot_confusion_matrix(c_low, ax=axes[1], title=\"Threshold 0.05\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Confusion matrices of the GBM at two thresholds. Color intensity is on a log scale.\n\n\n\n\n\nAt 0.5, the model flags just 2 policies, and 0 of them had a claim. Its highest predicted probability is only 0.52: with a claim rate of 3.7%, very few policies come anywhere near 50%. At 0.05, the model catches 2,725 of the 6,236 policies with claims, at the cost of 28,708 false alarms.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#metrics-derived-from-the-confusion-matrix",
-    "href": "docs/binary/confusion-matrix.html#metrics-derived-from-the-confusion-matrix",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "Metrics derived from the confusion matrix",
-    "text": "Metrics derived from the confusion matrix\n\n\n\n\n\n\n\n\nMetric\nFormula\nQuestion it answers\n\n\n\n\nAccuracy\n\\(\\frac{TP + TN}{N}\\)\nWhat share of decisions is correct?\n\n\nPrecision\n\\(\\frac{TP}{TP + FP}\\)\nOf the flagged policies, what share had a claim?\n\n\nRecall, true positive rate (TPR), sensitivity\n\\(\\frac{TP}{TP + FN}\\)\nOf the policies with a claim, what share did we flag?\n\n\nSpecificity, true negative rate (TNR)\n\\(\\frac{TN}{TN + FP}\\)\nOf the policies without a claim, what share did we leave alone?\n\n\nFalse positive rate (FPR)\n\\(\\frac{FP}{FP + TN} = 1 - \\text{TNR}\\)\nOf the policies without a claim, what share did we flag?\n\n\nF1 score\n\\(2 \\cdot \\frac{\\text{precision} \\cdot \\text{recall}}{\\text{precision} + \\text{recall}}\\)\nA single summary of precision and recall (their harmonic mean)\n\n\nBalanced accuracy\n\\(\\frac{\\text{TPR} + \\text{TNR}}{2}\\)\nAccuracy if both classes were equally common\n\n\n\nPrecision and recall look at the positive class from two sides: precision asks how trustworthy a flag is, recall how complete the flagging is. Raising the threshold usually increases precision and decreases recall.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#the-accuracy-paradox",
-    "href": "docs/binary/confusion-matrix.html#the-accuracy-paradox",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "The accuracy paradox",
-    "text": "The accuracy paradox\n\n\nCode\nmetrics = [\"accuracy\", \"precision\", \"recall (TPR)\", \"specificity (TNR)\", \"balanced accuracy\"]\npd.DataFrame({m: threshold_metrics(y, b[m], 0.5)[metrics] for m in (\"Null\", \"GLM\", \"GBM\")}).round(3)\n\n\n\n\nTable 1: Threshold metrics at the default threshold 0.5.\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\naccuracy\n0.963\n0.963\n0.963\n\n\nprecision\nNaN\nNaN\n0.000\n\n\nrecall (TPR)\n0.000\n0.000\n0.000\n\n\nspecificity (TNR)\n1.000\n1.000\n1.000\n\n\nbalanced accuracy\n0.500\n0.500\n0.500\n\n\n\n\n\n\n\n\n\n\nAll three models reach an accuracy of about 96.3%, including the Null model, which never predicts a claim. That number is simply the share of policies without a claim. Under class imbalance:\n\nAccuracy is dominated by the majority class. ‘Always predict 0’ reaches 96.3% without learning anything.\nAlways compare with the Null model. An accuracy only means something next to the accuracy of predicting the majority class (here 96.3%).\nBalanced accuracy and recall expose the problem: 0.5 and 0.0 say this decision rule doesn’t find any claims.\n\nThe GBM is not useless, though. The problem is the threshold, not the model.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#choosing-a-threshold",
-    "href": "docs/binary/confusion-matrix.html#choosing-a-threshold",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "Choosing a threshold",
-    "text": "Choosing a threshold\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 4))\nplot_score_distributions(y, b[\"GBM\"], ax=axes[0], threshold=0.05)\nplot_threshold_metrics(y, b[\"GBM\"], ax=axes[1])\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Left: predicted claim probabilities of the GBM for policies without and with a claim. Right: threshold metrics of the GBM as the threshold moves.\n\n\n\n\n\nThe left panel shows why no threshold separates the classes cleanly. Policies with a claim get higher probabilities on average, but the two distributions overlap heavily. The right panel shows the resulting trade-off:\n\nLowering the threshold flags more policies. Recall rises and precision falls.\nAccuracy keeps rising with the threshold, because flagging fewer policies means fewer false alarms among the large majority without claims. Maximizing accuracy pushes towards ‘never flag anything’.\n\nSo which threshold is right? That depends on what each kind of error costs, not on the model. If a missed claim costs \\(c_{FN}\\) and a false alarm costs \\(c_{FP}\\), and the probabilities are calibrated, the cost-minimizing rule is to flag a policy when\n\\[\n\\hat p \\ge \\frac{c_{FP}}{c_{FP} + c_{FN}}.\n\\]\nFor example, if a review costs 50 EUR and catching a claim early saves 950 EUR, the optimal threshold is \\(50 / (50 + 950) = 0.05\\). Decision curves and calibration, covered in later pages, build on this idea.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
-    "objectID": "docs/binary/confusion-matrix.html#takeaways",
-    "href": "docs/binary/confusion-matrix.html#takeaways",
-    "title": "Confusion matrix and threshold metrics",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nThreshold metrics evaluate a decision rule, so always report the threshold along with them.\nUnder class imbalance, accuracy mostly measures the class balance. Compare with the Null model, and prefer recall, precision or balanced accuracy.\nThe threshold should come from the costs of errors, not from the 0.5 default.\nTo judge the model independently of any one threshold, look at all thresholds at once: that is the ROC curve.",
-    "crumbs": [
-      "Binary outcomes",
-      "Confusion matrix and threshold metrics"
-    ]
-  },
-  {
     "objectID": "docs/foundations/data-and-models.html",
     "href": "docs/foundations/data-and-models.html",
     "title": "Data and models",
@@ -491,6 +121,508 @@
     ]
   },
   {
+    "objectID": "docs/binary/confusion-matrix.html",
+    "href": "docs/binary/confusion-matrix.html",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "",
+    "text": "Question answered: if we turn the model’s probabilities into yes/no decisions, how good are those decisions?",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#from-probabilities-to-decisions",
+    "href": "docs/binary/confusion-matrix.html#from-probabilities-to-decisions",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "From probabilities to decisions",
+    "text": "From probabilities to decisions\nOur models predict a probability of a claim. Many uses need a decision instead: inspect this policy or not, refer it to underwriting or not. The usual way to get one is to pick a threshold \\(t\\) and predict\n\\[\n\\hat y = \\begin{cases} 1 & \\text{if } \\hat p \\ge t \\\\ 0 & \\text{otherwise.} \\end{cases}\n\\]\nEvery metric on this page evaluates the model together with a threshold. Change the threshold and all of them change.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#the-confusion-matrix",
+    "href": "docs/binary/confusion-matrix.html#the-confusion-matrix",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "The confusion matrix",
+    "text": "The confusion matrix\nComparing decisions with outcomes gives four kinds of cases:\n\n\n\n\n\n\n\n\n\nPredicted 0\nPredicted 1\n\n\n\n\nActual 0\ntrue negative (TN)\nfalse positive (FP), ‘false alarm’\n\n\nActual 1\nfalse negative (FN), ‘miss’\ntrue positive (TP)\n\n\n\nHere is the GBM on the 169,504 test policies at the conventional threshold of 0.5 and at a much lower threshold of 0.05:\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(9, 3.8))\nplot_confusion_matrix(c_half, ax=axes[0], title=\"Threshold 0.5\")\nplot_confusion_matrix(c_low, ax=axes[1], title=\"Threshold 0.05\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Confusion matrices of the GBM at two thresholds. Color intensity is on a log scale.\n\n\n\n\n\nAt 0.5, the model flags just 2 policies, and 0 of them had a claim. Its highest predicted probability is only 0.52: with a claim rate of 3.7%, very few policies come anywhere near 50%. At 0.05, the model catches 2,725 of the 6,236 policies with claims, at the cost of 28,708 false alarms.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#metrics-derived-from-the-confusion-matrix",
+    "href": "docs/binary/confusion-matrix.html#metrics-derived-from-the-confusion-matrix",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "Metrics derived from the confusion matrix",
+    "text": "Metrics derived from the confusion matrix\n\n\n\n\n\n\n\n\nMetric\nFormula\nQuestion it answers\n\n\n\n\nAccuracy\n\\(\\frac{TP + TN}{N}\\)\nWhat share of decisions is correct?\n\n\nPrecision\n\\(\\frac{TP}{TP + FP}\\)\nOf the flagged policies, what share had a claim?\n\n\nRecall, true positive rate (TPR), sensitivity\n\\(\\frac{TP}{TP + FN}\\)\nOf the policies with a claim, what share did we flag?\n\n\nSpecificity, true negative rate (TNR)\n\\(\\frac{TN}{TN + FP}\\)\nOf the policies without a claim, what share did we leave alone?\n\n\nFalse positive rate (FPR)\n\\(\\frac{FP}{FP + TN} = 1 - \\text{TNR}\\)\nOf the policies without a claim, what share did we flag?\n\n\nF1 score\n\\(2 \\cdot \\frac{\\text{precision} \\cdot \\text{recall}}{\\text{precision} + \\text{recall}}\\)\nA single summary of precision and recall (their harmonic mean)\n\n\nBalanced accuracy\n\\(\\frac{\\text{TPR} + \\text{TNR}}{2}\\)\nAccuracy if both classes were equally common\n\n\n\nPrecision and recall look at the positive class from two sides: precision asks how trustworthy a flag is, recall how complete the flagging is. Raising the threshold usually increases precision and decreases recall.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#the-accuracy-paradox",
+    "href": "docs/binary/confusion-matrix.html#the-accuracy-paradox",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "The accuracy paradox",
+    "text": "The accuracy paradox\n\n\nCode\nmetrics = [\"accuracy\", \"precision\", \"recall (TPR)\", \"specificity (TNR)\", \"balanced accuracy\"]\npd.DataFrame({m: threshold_metrics(y, b[m], 0.5)[metrics] for m in (\"Null\", \"GLM\", \"GBM\")}).round(3)\n\n\n\n\nTable 1: Threshold metrics at the default threshold 0.5.\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\naccuracy\n0.963\n0.963\n0.963\n\n\nprecision\nNaN\nNaN\n0.000\n\n\nrecall (TPR)\n0.000\n0.000\n0.000\n\n\nspecificity (TNR)\n1.000\n1.000\n1.000\n\n\nbalanced accuracy\n0.500\n0.500\n0.500\n\n\n\n\n\n\n\n\n\n\nAll three models reach an accuracy of about 96.3%, including the Null model, which never predicts a claim. That number is simply the share of policies without a claim. Under class imbalance:\n\nAccuracy is dominated by the majority class. ‘Always predict 0’ reaches 96.3% without learning anything.\nAlways compare with the Null model. An accuracy only means something next to the accuracy of predicting the majority class (here 96.3%).\nBalanced accuracy and recall expose the problem: 0.5 and 0.0 say this decision rule doesn’t find any claims.\n\nThe GBM is not useless, though. The problem is the threshold, not the model.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#choosing-a-threshold",
+    "href": "docs/binary/confusion-matrix.html#choosing-a-threshold",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "Choosing a threshold",
+    "text": "Choosing a threshold\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 4))\nplot_score_distributions(y, b[\"GBM\"], ax=axes[0], threshold=0.05)\nplot_threshold_metrics(y, b[\"GBM\"], ax=axes[1])\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Left: predicted claim probabilities of the GBM for policies without and with a claim. Right: threshold metrics of the GBM as the threshold moves.\n\n\n\n\n\nThe left panel shows why no threshold separates the classes cleanly. Policies with a claim get higher probabilities on average, but the two distributions overlap heavily. The right panel shows the resulting trade-off:\n\nLowering the threshold flags more policies. Recall rises and precision falls.\nAccuracy keeps rising with the threshold, because flagging fewer policies means fewer false alarms among the large majority without claims. Maximizing accuracy pushes towards ‘never flag anything’.\n\nSo which threshold is right? That depends on what each kind of error costs, not on the model. If a missed claim costs \\(c_{FN}\\) and a false alarm costs \\(c_{FP}\\), and the probabilities are calibrated, the cost-minimizing rule is to flag a policy when\n\\[\n\\hat p \\ge \\frac{c_{FP}}{c_{FP} + c_{FN}}.\n\\]\nFor example, if a review costs 50 EUR and catching a claim early saves 950 EUR, the optimal threshold is \\(50 / (50 + 950) = 0.05\\). Decision curves and calibration, covered in later pages, build on this idea.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/binary/confusion-matrix.html#takeaways",
+    "href": "docs/binary/confusion-matrix.html#takeaways",
+    "title": "Confusion matrix and threshold metrics",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nThreshold metrics evaluate a decision rule, so always report the threshold along with them.\nUnder class imbalance, accuracy mostly measures the class balance. Compare with the Null model, and prefer recall, precision or balanced accuracy.\nThe threshold should come from the costs of errors, not from the 0.5 default.\nTo judge the model independently of any one threshold, look at all thresholds at once: that is the ROC curve.",
+    "crumbs": [
+      "Binary outcomes",
+      "Confusion matrix and threshold metrics"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html",
+    "href": "docs/continuous/lift-lorenz.html",
+    "title": "Lift charts and Lorenz curves",
+    "section": "",
+    "text": "Question answered: does the model separate low risks from high risks, and is its prediction right for each risk segment?\nThe deviance page ended with D² values of about 1.3%: individual claims are mostly chance, so any average over individual errors is small. A pricing model is judged on something else: whether the policies it calls expensive really cost more, as a group, than the ones it calls cheap. Grouping averages away the noise. This page covers the standard tools for that:",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html#the-lift-chart",
+    "href": "docs/continuous/lift-lorenz.html#the-lift-chart",
+    "title": "Lift charts and Lorenz curves",
+    "section": "The lift chart",
+    "text": "The lift chart\nTo draw a lift chart (also called a quantile plot):\n\nsort the test policies by their predicted pure premium,\ncut them into 10 groups (deciles) holding the same total exposure,\nper decile, compare the exposure-weighted average prediction with the average actual pure premium.\n\nThe deciles hold equal exposure rather than equal numbers of policies, because pure premium is a rate per policy-year: a decile full of short policies would hold far less information than its policy count suggests.\n\n\nCode\nlift = {m: segment_table(y, {m: p[m]}, w, sort_by=p[m]) for m in models}\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.2), sharey=True)\nfor ax, m in zip(axes, models):\n    plot_segments(lift[m], [m], ax=ax, xlabel=f\"Decile of {m} prediction (1 = lowest)\", title=m)\naxes[1].set_ylabel(\"\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Lift charts on the test set: average actual and predicted pure premium per decile of each model’s prediction (deciles of equal exposure). Bars are 95% intervals for the actual average.\n\n\n\n\n\nA good lift chart shows three things:\n\nMonotonicity. Actual cost should rise from decile to decile. Both models get there broadly, with a few dips in the middle.\nSpread. The steeper the actual curve, the better the model separates risks. The ratio of the top to the bottom decile is a common summary (the ‘lift’ that gives the chart its name).\nAgreement. The predicted line should run through the actual points. A gap shows the predictions are off for that segment even when the overall average is right: calibration, checked by group.\n\n\n\nCode\npd.DataFrame({\n    m: {\n        \"actual, decile 1 (EUR)\": t.loc[1, \"actual\"],\n        \"actual, decile 10 (EUR)\": t.loc[10, \"actual\"],\n        \"lift: decile 10 ÷ decile 1\": t.loc[10, \"actual\"] / t.loc[1, \"actual\"],\n        \"lift: decile 10 ÷ overall\": t.loc[10, \"actual\"] / mean,\n        \"predicted ÷ actual, decile 10\": t.loc[10, m] / t.loc[10, \"actual\"],\n    }\n    for m, t in lift.items()\n}).round(2)\n\n\n\n\nTable 1: Summaries of the lift charts. Lift is the top decile’s actual average divided by the bottom decile’s (or by the overall average).\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\n\n\n\n\nactual, decile 1 (EUR)\n73.68\n51.89\n\n\nactual, decile 10 (EUR)\n344.87\n380.61\n\n\nlift: decile 10 ÷ decile 1\n4.68\n7.34\n\n\nlift: decile 10 ÷ overall\n2.36\n2.60\n\n\npredicted ÷ actual, decile 10\n1.23\n0.98\n\n\n\n\n\n\n\n\n\n\nThe GBM’s top decile costs 7.3 times its bottom decile, against 4.7 times for the GLM. Where the models differ most is the top decile: the GLM predicts 23% more than its riskiest policies actually cost, while the GBM is within 2%. The GLM’s predictions are too extreme at the top, the regression-to-the-mean pattern the calibration page described for probabilities.\n\n\n\n\n\n\nNoteRead the intervals before reading the dips\n\n\n\nEach decile holds 12,871 to 20,188 policies, but only 312 to 1,496 of them have a claim, and claim sizes vary enormously. The 95% intervals are wide, so a dip such as the GBM’s 4th decile is well within noise. Don’t redesign a model to remove a wiggle that the intervals cover.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html#the-double-lift-chart",
+    "href": "docs/continuous/lift-lorenz.html#the-double-lift-chart",
+    "title": "Lift charts and Lorenz curves",
+    "section": "The double lift chart",
+    "text": "The double lift chart\nTwo lift charts side by side are hard to compare: both look good, and their deciles contain different policies. The double lift chart compares the two models directly, on the policies where they disagree:\n\nput both models on the same overall level (here: rescale each so its average on the test set equals the actual average), so a difference in the overall level doesn’t look like a difference in segmentation;\nsort the policies by the ratio GBM ÷ GLM, and cut them into deciles of equal exposure;\nper decile, compare the actual average with both models’ averages.\n\nDecile 1 holds the policies the GBM rates much lower than the GLM, decile 10 those it rates much higher. In the middle the models agree.\n\nrebalanced = {m: p[m] * mean / np.average(p[m], weights=w) for m in models}\ndouble = segment_table(y, rebalanced, w, sort_by=rebalanced[\"GBM\"] / rebalanced[\"GLM\"])\n\n\n\nCode\nxlabel = \"Decile of GBM ÷ GLM (1 = GBM much lower)\"\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.2))\nplot_segments(double, models, ax=axes[0], xlabel=xlabel, legend_loc=\"upper center\")\nplot_segments(double, models, ax=axes[1], ratio=True, xlabel=xlabel)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Double lift chart, GBM against GLM. Left: average actual and predicted pure premium per decile of the ratio GBM ÷ GLM. Right: actual ÷ predicted for each model; 1 means the model’s average is right for that decile.\n\n\n\n\n\nThe left panel answers the question ‘who is right where they disagree?’ In decile 1, the GLM predicts 349 EUR, the GBM 182 EUR, and the actual average is 255 EUR. In decile 10, the GLM predicts 104, the GBM 226, and the actual average is 159. Neither model wins: in both tails the truth lies between them.\nThe right panel shows the same comparison as actual ÷ predicted. The better model is the one whose curve stays flat at 1. Insurers read this as a loss ratio: if premiums were set by the GLM, actual ÷ GLM is the loss ratio each segment would produce.\n\nActual ÷ GLM rises from 0.73 to 1.53. The GBM finds policies the GLM overprices (left) and underprices (right).\nActual ÷ GBM falls from 1.40 to 0.71. The GLM finds mispricing in the GBM just as well.\n\nEach model knows something the other doesn’t, and each overreacts where it disagrees with the other. A curve that crosses 1 in the opposite direction would mean the model is worse than useless where the two differ: its deviations from the other model point the wrong way.\n\nWhat the double lift chart suggests: blend\nWhen both models are partly right, a combination usually beats either. A simple blend is the geometric mean of the two predictions (an average on the log scale, which suits multiplicative pricing models):\n\nblend = np.sqrt(rebalanced[\"GLM\"] * rebalanced[\"GBM\"])\nblend *= mean / np.average(blend, weights=w)\n\n\n\nCode\ndouble_blend = segment_table(y, {\"Blend\": blend, \"GBM\": rebalanced[\"GBM\"]}, w, sort_by=blend / rebalanced[\"GBM\"])\nax = plot_segments(double_blend, [\"Blend\", \"GBM\"], ratio=True, xlabel=\"Decile of Blend ÷ GBM (1 = Blend much lower)\")\nax.figure.set_size_inches(6, 4)\n\n\n\n\n\n\n\n\nFigure 3: Double lift chart, blend against GBM: actual ÷ predicted per decile of the ratio Blend ÷ GBM.\n\n\n\n\n\n\nscores = {**{m: p[m] for m in models}, \"Blend\": blend}\npd.DataFrame({\n    m: {\"Gini\": gini_index(y, s, w), \"D²\": deviance_metrics(y, s, p[\"Null\"], w, TWEEDIE_POWER)[\"D²\"]}\n    for m, s in scores.items()\n}).round(4)\n\n\n\nTable 2: Gini index and D² (Tweedie, p = 1.9) of the two models and their blend on the test set.\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\nBlend\n\n\n\n\nGini\n0.2928\n0.2944\n0.3078\n\n\nD²\n0.0127\n0.0134\n0.0147\n\n\n\n\n\n\n\n\n\n\nAgainst the blend, the GBM’s actual ÷ predicted swings away from 1 at both ends, while the blend’s stays near 1 within the noise: in this pairing, the blend wins. The blend also has the highest Gini and D². Two caveats: the comparison is on the test set the double lift chart was read from, so a blend chosen this way should be confirmed on fresh data; and whether its improvement is larger than sampling noise is a question for the model-comparison page.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html#the-lorenz-curve-and-the-gini-index",
+    "href": "docs/continuous/lift-lorenz.html#the-lorenz-curve-and-the-gini-index",
+    "title": "Lift charts and Lorenz curves",
+    "section": "The Lorenz curve and the Gini index",
+    "text": "The Lorenz curve and the Gini index\nThe lift chart shows separation decile by decile. The Lorenz curve shows it as one continuous curve:\n\nsort the policies from the lowest to the highest prediction,\nwalk along the sorted list and plot the share of total exposure covered so far (x-axis) against the share of total claim cost it contains (y-axis).\n\nA model that can’t separate risks (the Null model) gives the diagonal: the first 30% of exposure carries 30% of the claim cost. A model that separates well puts little claim cost into its low-risk policies, so its curve sags below the diagonal. The oracle sorts by the actual outcome, the best ranking possible.\n\n\nCode\nax = plot_lorenz(y, {m: p[m] for m in models}, w)\nax.figure.set_size_inches(5.5, 5.5)\n\n\n\n\n\n\n\n\nFigure 4: Lorenz curves on the test set, policies sorted from lowest to highest prediction. The dashed curve sorts by the actual outcome.\n\n\n\n\n\nThe GBM’s lowest-risk half of the exposure carries only 32% of the claim cost. The Gini index condenses the curve into one number: twice the area between the diagonal and the curve,\n\\[\n\\text{Gini} = 1 - 2 \\int_0^1 L(x)\\,dx,\n\\]\nwhere \\(L(x)\\) is the share of claim cost in the lowest-predicted share \\(x\\) of the exposure. It is 0 for the Null model and grows the better the model ranks the policies. The two models score 0.293 (GLM) and 0.294 (GBM), a relative difference of 0.6%. On D² the GBM was 6% ahead, and its top-to-bottom lift was much larger. The Gini weighs the whole ranking, while the lift ratio looks only at the two extreme deciles, each resting on a few hundred claims. A single decile ratio is a much noisier summary than the Gini.\nThe oracle’s Gini of 0.984 is not a realistic target: 95% of the exposure had no claim at all, and only hindsight can put those policies first. Some authors report a normalized Gini (Gini ÷ oracle Gini), but the oracle mostly reflects how many policies happened to have no claims, so it adds little here.\n\n\n\n\n\n\nNoteRelation to the classification Gini\n\n\n\nThe ROC page defined Gini = 2·AUC − 1 for a binary target. For a 0/1 outcome with equal weights, the Lorenz Gini equals \\((1 - \\pi)(2 \\cdot \\text{AUC} - 1)\\), where \\(\\pi\\) is the share of positives (the tests in tests/ check this). The factor \\(1 - \\pi\\) is the oracle’s Gini: dividing by it gives the normalized Gini, which equals 2·AUC − 1. Both measure how well the model ranks. The Lorenz version extends the idea to outcomes that aren’t 0/1, such as claim cost, and to weighted observations.\n\n\n\nWhat the Gini can’t see\nThe Gini depends only on the ranking. Any transformation that keeps the order of the predictions leaves it unchanged, however wrong the predictions become:\n\nsquared = p[\"GBM\"] ** 2 * np.average(p[\"GBM\"], weights=w) / np.average(p[\"GBM\"] ** 2, weights=w)\nvariants = {\"GBM\": p[\"GBM\"], \"2 × GBM\": 2 * p[\"GBM\"], \"GBM squared\": squared}\npd.DataFrame({\n    name: {\n        \"Gini\": gini_index(y, s, w),\n        \"D²\": deviance_metrics(y, s, p[\"Null\"], w, TWEEDIE_POWER)[\"D²\"],\n        \"bias (EUR)\": regression_metrics(y, s, w)[\"bias\"],\n    }\n    for name, s in variants.items()\n}).round(4)\n\n\n\nTable 3: Three versions of the GBM with identical rankings. ‘Squared’ is GBM², rescaled to the same average, so its overall level is right but its spread is far too wide.\n\n\n\n\n\n\n\n\n\n\nGBM\n2 × GBM\nGBM squared\n\n\n\n\nGini\n0.2944\n0.2944\n0.2944\n\n\nD²\n0.0134\n-0.0050\n-0.0186\n\n\nbias (EUR)\n-3.6890\n138.9580\n-3.6890\n\n\n\n\n\n\n\n\n\n\nDoubling every prediction, or squaring them, keeps the Gini exactly the same. D² drops below 0 (worse than predicting the average for everyone), and a lift chart would show the gap at once. So:\n\nNever use the Gini alone. Pair it with a lift chart or a calibration check, and with the deviance.\nDon’t compare Ginis across portfolios or years. Like AUC, the Gini depends on how heterogeneous the population is: a portfolio with more varied risks gives a higher Gini for an equally good model.\nSmall differences are noise. The GLM and GBM differ by 0.002, far less than the test-set variability of a Gini on data this noisy. Testing such differences is the subject of the model-comparison page.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html#which-tool-for-which-question",
+    "href": "docs/continuous/lift-lorenz.html#which-tool-for-which-question",
+    "title": "Lift charts and Lorenz curves",
+    "section": "Which tool for which question",
+    "text": "Which tool for which question\n\n\n\n\n\n\n\n\nTool\nAnswers\nWatch out for\n\n\n\n\nLift chart\nDoes cost rise with the prediction, and does the prediction match per segment?\nnoisy deciles: read the intervals\n\n\nDouble lift chart\nWhere two models disagree, which is right?\nrebalance both models to the same level first\n\n\nLorenz curve / Gini\nHow well does the model rank risks, in one number?\nblind to calibration and level; not comparable across portfolios\n\n\nDeviance / D²\nHow good are the individual predictions, ranking and level together?\nsmall values are normal; hard to interpret alone\n\n\n\nThe tools complement each other: the Gini and the lift spread measure ranking, the agreement in the lift chart measures calibration by segment, the double lift chart compares two candidate models, and the deviance checks both ranking and level at once.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/lift-lorenz.html#takeaways",
+    "href": "docs/continuous/lift-lorenz.html#takeaways",
+    "title": "Lift charts and Lorenz curves",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nWith noisy outcomes, judge a pricing model on groups: deciles of equal exposure average away the noise that dominates individual-level metrics.\nA lift chart should rise monotonically, be steep, and have predictions that run through the actual points. Here the GLM overpredicts its top decile by 23%.\nA double lift chart compares two models where they disagree. Here each model finds mispricing in the other, and a simple blend beats both.\nThe Gini index summarizes the Lorenz curve: 0.293 (GLM) against 0.294 (GBM). It measures ranking only, so a badly miscalibrated model can have the same Gini as a good one.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Lift charts and Lorenz curves"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html",
+    "href": "docs/comparison/model-comparison.html",
+    "title": "Comparing models",
+    "section": "",
+    "text": "Question answered: is one model really better than another, or did the test set happen to favour it?\nEvery metric on the earlier pages was computed on one test set of 169,504 policies. A different sample of policies would have given slightly different values, so each metric is an estimate with sampling uncertainty. When two models are close, the question is whether their gap is larger than that uncertainty. This page covers three ways to answer it:\nIt ends by settling a question left open on the lift chart page: is the GLM–GBM blend’s improvement real?",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#compare-the-difference-not-two-intervals",
+    "href": "docs/comparison/model-comparison.html#compare-the-difference-not-two-intervals",
+    "title": "Comparing models",
+    "section": "Compare the difference, not two intervals",
+    "text": "Compare the difference, not two intervals\nBoth models are scored on the same policies. That matters: a test set that happens to contain many easy-to-rank policies flatters both models at once. Most of the sampling noise is shared, and it cancels in the difference.\nThe tempting shortcut, computing an interval for each model and checking whether they overlap, ignores this. It treats the two estimates as independent and overstates the uncertainty of the difference, often by a large factor. The right approach measures the uncertainty of the difference itself, on paired data. All three methods below do that.",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#the-paired-bootstrap",
+    "href": "docs/comparison/model-comparison.html#the-paired-bootstrap",
+    "title": "Comparing models",
+    "section": "The paired bootstrap",
+    "text": "The paired bootstrap\nThe bootstrap estimates sampling uncertainty by imitating the sampling:\n\ndraw a resample of the test set: as many policies as it has, drawn at random with replacement (some appear twice, others not at all);\nscore both models on the same resample and record their difference;\nrepeat many times (here 1,000).\n\nThe spread of the recorded differences shows how much the difference would vary from one test set to another. Its 2.5% and 97.5% quantiles give a 95% percentile interval.\nHere is the AUC of the two HasClaim models from the ROC page:\n\nboot = paired_bootstrap(auc_rank, y, {m: b[m] for m in (\"GLM\", \"GBM\")}, n_boot=N_BOOT)\n\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.4))\nplot_paired_bootstrap(boot, \"GBM\", \"GLM\", axes)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Paired bootstrap of the AUC on the test set. Left: GBM against GLM AUC, one point per resample. Right: distribution of the difference GBM − GLM, with its 95% percentile interval shaded.\n\n\n\n\n\nThe left panel shows why pairing matters. From one resample to the next, the AUCs move together (correlation 0.88): a resample that is easy for the GLM is easy for the GBM too. Each AUC on its own has a standard error of about 0.0033, but their difference only 0.0016. Treating the models as independent would give 0.0047, overstating the uncertainty 2.9 times.\n\n\nCode\npd.DataFrame({\n    **{m: {\"AUC\": auc[m], \"std. error\": se[m], \"lower\": boot[m].quantile(0.025), \"upper\": boot[m].quantile(0.975)}\n       for m in (\"GLM\", \"GBM\")},\n    \"GBM − GLM\": boot_auc.rename({\"difference\": \"AUC\"}).drop(\"p-value\"),\n}).T.round(4)\n\n\n\n\nTable 1: AUC of each model and of their difference, with bootstrap standard errors and 95% percentile intervals.\n\n\n\n\n\n\n\n\n\n\nAUC\nstd. error\nlower\nupper\n\n\n\n\nGLM\n0.6943\n0.0033\n0.6875\n0.7003\n\n\nGBM\n0.7127\n0.0033\n0.7058\n0.7191\n\n\nGBM − GLM\n0.0184\n0.0016\n0.0153\n0.0215\n\n\n\n\n\n\n\n\n\n\nThe whole interval for GBM − GLM lies above 0: not one of the 1,000 resamples had the GLM ahead. The GBM ranks better, and not by chance.\n\n\n\n\n\n\nNoteWhy the bootstrap works, and when it doesn’t\n\n\n\nThe bootstrap treats the test set as a stand-in for the population and resamples from it. It works for any metric you can compute, however complicated (AUC, Gini, a lift ratio, the precision in the top 5%), which makes it the default tool. It needs:\n\nIndependent observations. Resampling single policies assumes each is a separate draw. With grouped data (several policies per customer) or time series, resample whole groups or blocks instead.\nEnough resamples. 1,000 is plenty for a 95% interval. Small p-values need more: with B resamples a p-value can’t go much below 2/B.\nTime. Every resample recomputes the metric for every model.",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#delongs-test-for-auc",
+    "href": "docs/comparison/model-comparison.html#delongs-test-for-auc",
+    "title": "Comparing models",
+    "section": "DeLong’s test for AUC",
+    "text": "DeLong’s test for AUC\nFor AUC there is a formula that gives the same answer without resampling. DeLong, DeLong and Clarke-Pearson (1988) start from the reading of AUC on the ROC page: the share of (claim, no-claim) pairs that the model orders correctly. That share is an average over pairs, so it splits into a contribution per policy, its placement value:\n\nfor a policy with a claim: the share of no-claim policies it outscores;\nfor a policy without a claim: the share of claim policies that outscore it\n\n(ties count ½). Both sets of placement values average to the AUC, and their variances give the variance of the AUC. For two models, the same computation on the per-policy differences of their placement values gives the variance of the AUC difference, with the pairing built in:\n\\[\n\\operatorname{Var}(\\widehat{\\text{AUC}}_A - \\widehat{\\text{AUC}}_B)\n= \\frac{\\operatorname{Var}(V^A_{1} - V^B_{1})}{n_1}\n+ \\frac{\\operatorname{Var}(V^A_{0} - V^B_{0})}{n_0},\n\\]\nwhere \\(V_1\\) are the placement values of the \\(n_1\\) claim policies and \\(V_0\\) those of the \\(n_0\\) no-claim policies. The test statistic is the difference divided by its standard error, compared with the normal distribution.\n\ndelong = delong_test(y, b[\"GBM\"], b[\"GLM\"])\ncomparison_table({\"DeLong\": delong, \"Paired bootstrap\": boot_auc})\n\n\n\nTable 2: AUC of GBM − GLM: DeLong’s test and the paired bootstrap.\n\n\n\n\n\n\n\n\n\n\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nDeLong\n0.01844\n0.001649\n[0.01521, 0.02167]\n&lt; 0.001\n\n\nPaired bootstrap\n0.01844\n0.001634\n[0.01533, 0.02152]\n0.002\n\n\n\n\n\n\n\n\n\n\nThe two methods agree closely: DeLong’s standard error is 0.00165, the bootstrap’s 0.00163. DeLong’s p-value can go far below anything 1,000 resamples could show, and it takes a fraction of a second. For AUC alone, DeLong is the standard choice. For other metrics, use the bootstrap.",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#the-dieboldmariano-test-for-losses",
+    "href": "docs/comparison/model-comparison.html#the-dieboldmariano-test-for-losses",
+    "title": "Comparing models",
+    "section": "The Diebold–Mariano test for losses",
+    "text": "The Diebold–Mariano test for losses\nLog loss, the Brier score, squared error and deviance are all averages of a loss per observation. Comparing two models on such a metric is comparing two averages over the same observations. Diebold and Mariano (1995) test this through the loss differential of each observation,\n\\[\nd_i = L(y_i, \\hat y^A_i) - L(y_i, \\hat y^B_i),\n\\]\nwhose average is the difference in the metric. If the models are equally good, the \\(d_i\\) average to 0 apart from noise. The test divides \\(\\bar d\\) by its standard error, \\(\\text{sd}(d) / \\sqrt n\\), and compares the result with the normal distribution. With weights (such as exposure) both the average and its standard error are weighted.\nFor independent observations this is simply a paired test on the losses. The name comes from forecasting, where the observations form a time series: there the standard error must allow for autocorrelation between consecutive \\(d_i\\) (a Newey–West standard error), which is the original test’s real contribution.\n\np_glm, p_gbm = b[\"GLM\"].to_numpy(), b[\"GBM\"].to_numpy()\nlog_loss_per_policy = lambda p: -(y * np.log(p) + (1 - y) * np.log(1 - p))\ncomparison_table({\n    \"log loss\": diebold_mariano(log_loss_per_policy(p_glm), log_loss_per_policy(p_gbm)),\n    \"Brier score\": diebold_mariano((p_glm - y) ** 2, (p_gbm - y) ** 2),\n})\n\n\n\nTable 3: Diebold–Mariano tests for HasClaim: GLM loss − GBM loss (positive means the GBM is better).\n\n\n\n\n\n\n\n\n\n\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nlog loss\n0.003199\n0.0002108\n[0.002786, 0.003612]\n&lt; 0.001\n\n\nBrier score\n0.0004868\n4.17e-05\n[0.0004051, 0.0005686]\n&lt; 0.001\n\n\n\n\n\n\n\n\n\n\nThe GBM’s log loss is 2.2% lower than the GLM’s, a small relative gain but measured very precisely: on a large test set even small differences in an average loss are easy to detect. The probabilities agree with the ranking from the AUC tests. The GBM is better on both.\nTwo things the Diebold–Mariano test can’t do:\n\nAUC and Gini are not averages of per-observation losses. They depend on pairs or on the ranking of the whole test set, so they have no loss differential. Use DeLong or the bootstrap.\nIt compares scores, not truth. A significant difference in log loss says one model’s probabilities are closer to the outcomes on average. It says nothing about where: for that, look at calibration plots and double lift charts.",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#is-the-blends-improvement-real",
+    "href": "docs/comparison/model-comparison.html#is-the-blends-improvement-real",
+    "title": "Comparing models",
+    "section": "Is the blend’s improvement real?",
+    "text": "Is the blend’s improvement real?\nThe lift chart page found that the GLM and the GBM for pure premium each detect mispricing in the other, and that their geometric mean beats both. But all three Gini indices lay within about 0.015 of each other, on a target where a few large claims dominate everything. Time to test.\nOne detail first. On the lift chart page, the blend was rescaled so that its average on the test set matched the actual average. That uses the test outcomes, which would flatter the blend’s deviance. Here the scale factor comes from the training set, so nothing about the blend is fitted on the test data. (The Gini doesn’t depend on the scale, so it is unchanged.)\n\npp = pure_premium_predictions()\nyp, w = pp[\"y\"].to_numpy(), pp[\"w\"].to_numpy()\n\ntrain, fitted = train_test().train, load_models()[\"pure_premium\"]\nglm_train, gbm_train = (fitted[m].predict(train[FEATURES]) for m in (\"GLM\", \"GBM\"))\nscale = np.average(train[\"PurePremium\"], weights=train[\"Exposure\"]) / np.average(\n    np.sqrt(glm_train * gbm_train), weights=train[\"Exposure\"]\n)\nscores = {m: pp[m].to_numpy() for m in (\"GLM\", \"GBM\")}\nscores[\"Blend\"] = scale * np.sqrt(scores[\"GLM\"] * scores[\"GBM\"])\n\nWe compare all three pairs on two metrics:\n\nthe Gini index, a ranking metric with no per-policy loss: paired bootstrap, resampling policies together with their exposure;\nD², the share of the Null model’s Tweedie deviance explained: the Diebold–Mariano test on the per-policy deviance, weighted by exposure. Since all models share the same Null deviance, a difference in D² is a difference in mean deviance divided by the Null deviance.\n\n\npairs = [(\"GBM\", \"GLM\"), (\"Blend\", \"GLM\"), (\"Blend\", \"GBM\")]\ngini = {m: gini_index(yp, s, w) for m, s in scores.items()}\ngini_boot = paired_bootstrap(gini_index, yp, scores, w, n_boot=N_BOOT)\ngini_tests = {f\"{a} − {c}\": bootstrap_summary(gini[a] - gini[c], gini_boot[a] - gini_boot[c]) for a, c in pairs}\n\ndeviance = {m: tweedie_deviance(yp, s, TWEEDIE_POWER) for m, s in scores.items()}\nnull_deviance = np.average(tweedie_deviance(yp, pp[\"Null\"], TWEEDIE_POWER), weights=w)\nd2_tests = {}\nfor a, c in pairs:\n    dm = diebold_mariano(deviance[c], deviance[a], w)  # positive: model a has lower deviance\n    scaled = [\"difference\", \"std. error\", \"lower\", \"upper\"]\n    d2_tests[f\"{a} − {c}\"] = pd.concat([dm[scaled] / null_deviance, dm[[\"p-value\"]]])\n\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 3.2), sharey=True)\nplot_intervals(pd.DataFrame(gini_tests).T, ax=axes[0], xlabel=\"Difference in Gini index\", title=\"Gini (ranking)\")\nplot_intervals(pd.DataFrame(d2_tests).T, ax=axes[1], xlabel=\"Difference in D²\", title=\"D² (deviance)\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Differences in Gini index (paired bootstrap) and D² (Diebold–Mariano) between the pure premium models, with 95% intervals. An interval crossing 0 is compatible with no difference.\n\n\n\n\n\n\n\nCode\npd.concat({\"Gini (bootstrap)\": comparison_table(gini_tests, \".3f\"),\n           \"D² (Diebold–Mariano)\": comparison_table(d2_tests, \".4f\")}, axis=1)\n\n\n\n\nTable 4: Pure premium: differences between the models, test set.\n\n\n\n\n\n\n\n\n\n\nGini (bootstrap)\nD² (Diebold–Mariano)\n\n\n\ndifference\nstd. error\n95% interval\np-value\ndifference\nstd. error\n95% interval\np-value\n\n\n\n\nGBM − GLM\n0.002\n0.014\n[-0.025, 0.028]\n0.913\n0.0007\n0.0015\n[-0.0021, 0.0036]\n0.619\n\n\nBlend − GLM\n0.015\n0.006\n[0.004, 0.027]\n0.018\n0.0020\n0.0008\n[0.0004, 0.0035]\n0.012\n\n\nBlend − GBM\n0.013\n0.008\n[-0.001, 0.030]\n0.084\n0.0012\n0.0007\n[-0.0002, 0.0027]\n0.093\n\n\n\n\n\n\n\n\n\n\nThree conclusions, from clear to uncertain:\n\nGBM against GLM: no detectable difference. The Gini difference is +0.002 with an interval from -0.025 to 0.028, and the D² difference is just as inconclusive (p = 0.619). The GBM’s clearly better AUC for HasClaim does not carry over to pure premium, where claim sizes add a large amount of noise.\nBlend against GLM: likely better. Both intervals exclude 0 (p = 0.018 for the Gini, 0.012 for D²). That is good evidence, though not overwhelming (see the next section).\nBlend against GBM: suggestive, not established. Both intervals include 0: the Gini gain of 0.013 has p = 0.084, the D² gain p = 0.093.\n\nThe pairing is again what makes any of this detectable. Each Gini on its own has a bootstrap standard error of about 0.028, so the per-model intervals overlap almost completely, yet the blend’s difference from the GLM has a standard error of only 0.006. The blend is built from the GLM and the GBM, so its ranking is close to both, and most of the noise cancels.\nWhy are the intervals so wide? The test set has only 6,236 policies with a claim, and claim costs range over several orders of magnitude. For the deviance comparison of blend and GBM, the 170 policies that contribute most (the top 0.1%) account for 96% of the variance of the loss differential. A handful of large claims decide the result, so the test is far less precise than the size of the test set suggests.\n\nBefore declaring a winner\nSix tests, not one. This section ran three comparisons on two metrics. With six chances, one p-value below 0.05 is less convincing than it looks. The simplest correction (Bonferroni) asks for p below 0.05 / 6 ≈ 0.008 for each test, and neither blend result passes it. The blend’s gain over the GLM is still the most credible finding: both metrics point the same way, and the double lift chart explained why blending should help before we tested it. But it should be confirmed on fresh data before anyone relies on it.\nThe blend was suggested by the test set. We tried it because the double lift chart, drawn on these same test policies, pointed to it. A 50/50 blend has no tuned parameter and its scale comes from the training data, so the risk of having fitted the test set is small. Had we tuned the blend’s weight on the test set, its test-set score would be optimistic and the tests above invalid. The clean procedure: choose the blend on a validation set, or on cross-validation folds of the training data, and test once on held-out data.\nStatistical is not practical significance. A p-value says whether a difference is distinguishable from noise, not whether it matters. The GBM’s 2.2% lower log loss is overwhelmingly significant but may not justify replacing a GLM that regulators and underwriters understand. Report the interval for the difference, and judge whether its whole range would change a decision.\n\n\n\n\n\n\nNoteWhat these tests leave out: the training sample\n\n\n\nAll three methods resample the test set. They answer: ‘are these two fitted models different on the population the test set comes from?’ That is the right question when deciding which fitted model to deploy. They ignore that training on a different sample would have produced different models. To ask whether one modelling approach beats another (GBMs against GLMs in general, on this kind of data), repeat the fitting across cross-validation folds or repeated splits, and use a test that accounts for the overlap between training sets, such as the corrected resampled t-test of Nadeau and Bengio (2003).",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#which-test-for-which-metric",
+    "href": "docs/comparison/model-comparison.html#which-test-for-which-metric",
+    "title": "Comparing models",
+    "section": "Which test for which metric",
+    "text": "Which test for which metric\n\n\n\n\n\n\n\n\nMetric\nAverage of a loss per observation?\nTest\n\n\n\n\nAUC\nno (depends on pairs)\nDeLong; or paired bootstrap\n\n\nGini index, lift ratio, top-k precision\nno (depends on the ranking)\npaired bootstrap\n\n\nLog loss, Brier score, deviance, MSE, MAE\nyes\nDiebold–Mariano (paired test on the loss differential); or paired bootstrap\n\n\nD², R² (against the same Null model)\nratio of averages\nDiebold–Mariano on the deviance or squared error\n\n\nAny metric, observations over time\n—\nDiebold–Mariano with a Newey–West standard error; block bootstrap\n\n\nAny metric, grouped observations\n—\nbootstrap that resamples whole groups",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "docs/comparison/model-comparison.html#takeaways",
+    "href": "docs/comparison/model-comparison.html#takeaways",
+    "title": "Comparing models",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nA metric computed on a test set is an estimate. Before preferring one model, check whether the gap is larger than its sampling uncertainty.\nPair the comparison. Both models are scored on the same observations, so test the difference directly. Overlapping per-model intervals say little: here the paired standard error was 2.9 times smaller than the unpaired one for AUC.\nThe paired bootstrap works for any metric. DeLong’s test gives the same answer for AUC instantly. The Diebold–Mariano test handles any average loss, such as log loss or deviance.\nFor HasClaim, the GBM beats the GLM beyond doubt. For pure premium, GBM and GLM are indistinguishable. The blend is likely better than the GLM (p = 0.018 and 0.012, not robust to a correction for multiple tests), and its edge over the GBM is suggestive but not established on this test set.\nWatch for multiple comparisons, for choices made on the test set, and for the difference between statistical and practical significance.",
+    "crumbs": [
+      "Comparing models",
+      "Comparing models"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Measuring model performance",
+    "section": "",
+    "text": "This project documents how to measure the performance of predictive models, working through every method on real models fitted to real data. Each page answers one question about a model, shows the method on our examples, and explains when it misleads.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#the-examples",
+    "href": "index.html#the-examples",
+    "title": "Measuring model performance",
+    "section": "The examples",
+    "text": "The examples\nMost pages use the French motor insurance dataset (freMTPL2, about 680,000 policies) with two targets:\n\n\n\n\n\n\n\n\nTarget\nType\nQuestion\n\n\n\n\nHasClaim\nbinary (0/1)\nWill this policy have a claim?\n\n\nPurePremium\ncontinuous, weighted by exposure\nWhat claim cost per year should we expect?\n\n\n\nFor each target we compare a GLM (the traditional baseline) with a gradient boosting machine (GBM), plus a Null model that predicts the average for everyone. A few pages also use California Housing, a continuous target with a strong signal, where standard error metrics behave as textbooks describe. See Data and models.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#how-the-pages-are-organized",
+    "href": "index.html#how-the-pages-are-organized",
+    "title": "Measuring model performance",
+    "section": "How the pages are organized",
+    "text": "How the pages are organized\nMetrics are grouped by the question they answer rather than listed by name:\n\nClassification at a threshold: is the yes/no decision right? (confusion matrix)\nDiscrimination: does the model rank cases correctly? (ROC and AUC, precision–recall)\nCalibration: do predicted probabilities match observed frequencies? (calibration and scoring rules)\nError size: how far off are the predictions? (error metrics, deviance)\nRanking and segmentation: does the model separate low risks from high risks? (lift charts and Lorenz curves)\nModel comparison: is one model really better, or is the gap noise? (comparing models)\nDrift: coming next.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#working-with-the-code",
+    "href": "index.html#working-with-the-code",
+    "title": "Measuring model performance",
+    "section": "Working with the code",
+    "text": "Working with the code\nAll metric and plotting code lives in the modelperf package (src/modelperf/) and is tested against scikit-learn. Pages only call it, so explanations and implementations stay in sync.\nuv sync                  # install the environment\nuv run pytest            # check the metrics\nuv run quarto preview    # build and serve the site locally\nThe first page you render downloads the data and fits all models (about a minute); fitted models are cached in artifacts/.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html",
+    "href": "docs/continuous/error-metrics.html",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "",
+    "text": "Question answered: how far are the predictions from the actual values, on average?\nWe start with California Housing (median house value per district, in units of 100,000 USD), a target with a strong signal where these metrics behave as textbooks describe. At the end, we apply them to pure premium and watch them break.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html#the-four-basic-metrics",
+    "href": "docs/continuous/error-metrics.html#the-four-basic-metrics",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "The four basic metrics",
+    "text": "The four basic metrics\nWith errors \\(e_i = \\hat y_i - y_i\\) over \\(n\\) test cases:\n\n\n\n\n\n\n\n\n\nMetric\nFormula\nUnit\nQuestion it answers\n\n\n\n\nBias (mean error)\n\\(\\frac{1}{n}\\sum e_i\\)\ntarget\nIs the model systematically too high or too low?\n\n\nMAE (mean absolute error)\n\\(\\frac{1}{n}\\sum \\lvert e_i \\rvert\\)\ntarget\nHow large is a typical error?\n\n\nRMSE (root mean squared error)\n\\(\\sqrt{\\frac{1}{n}\\sum e_i^2}\\)\ntarget\nHow large are errors, with big ones weighted more?\n\n\nR² (coefficient of determination)\n\\(1 - \\frac{\\sum e_i^2}{\\sum (y_i - \\bar y)^2}\\)\nnone\nWhat share of the variance does the model explain?\n\n\n\nWith weights \\(w_i\\) (as for pure premium, weighted by exposure), each sum becomes a weighted sum and \\(n\\) becomes \\(\\sum w_i\\).\n\npd.DataFrame({m: regression_metrics(y, h[m]) for m in (\"Null\", \"GLM\", \"GBM\")}).round(3)\n\n\n\nTable 1: Test-set error metrics on California Housing (units of 100,000 USD).\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\nbias\n0.007\n-0.001\n0.010\n\n\nMAE\n0.910\n0.530\n0.297\n\n\nRMSE\n1.150\n0.736\n0.448\n\n\nR²\n-0.000\n0.591\n0.848\n\n\n\n\n\n\n\n\n\n\nReading the table:\n\nBias is close to zero for all models. That’s expected on data like the training data: least squares fits reproduce the mean. Bias becomes interesting once the data shifts: a growing bias is one of the first signs of drift (covered on a later page).\nThe GBM’s typical error (MAE) is 29,724 USD, against 52,970 USD for the GLM and 91,005 USD for always predicting the mean.\nRMSE is always at least as large as MAE. The gap grows with the share of large errors: squaring makes a single error of 3 count as much as nine errors of 1.\nR² compares the squared error with that of the Null model: the GBM removes 85% of the Null model’s squared error, the GLM 59%.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html#what-mae-and-rmse-reward",
+    "href": "docs/continuous/error-metrics.html#what-mae-and-rmse-reward",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "What MAE and RMSE reward",
+    "text": "What MAE and RMSE reward\nMAE and RMSE don’t just weigh errors differently, they reward different predictions:\n\nSquared error is minimized by the mean. A model trained or selected on RMSE learns the conditional mean of the target.\nAbsolute error is minimized by the median. A model selected on MAE learns the conditional median.\n\nFor a symmetric target the two coincide. For a skewed target, such as house prices, claim costs or incomes, they don’t. Scoring every constant prediction shows this:\n\n\nCode\nc = np.linspace(0.5, 4.0, 200)\nmae = [np.mean(np.abs(y - v)) for v in c]\nrmse = [np.sqrt(np.mean((y - v) ** 2)) for v in c]\n\nfig, ax = plt.subplots(figsize=(6, 3.8))\nfor values, name, color in [(mae, \"MAE\", METRIC_COLORS[0]), (rmse, \"RMSE\", METRIC_COLORS[1])]:\n    ax.plot(c, values, color=color, label=name)\n    ax.annotate(name, (c[-1], values[-1]), xytext=(4, 0), textcoords=\"offset points\",\n                va=\"center\", fontsize=9, color=INK_SECONDARY)\nfor stat, value, side in [(\"median\", y.median(), -1), (\"mean\", y.mean(), 1)]:\n    ax.axvline(value, color=INK_SECONDARY, linewidth=1)\n    ax.annotate(f\"{stat} {value:.2f}\", (value, 1), xycoords=(\"data\", \"axes fraction\"),\n                xytext=(4 * side, -4), textcoords=\"offset points\", va=\"top\",\n                ha=\"left\" if side &gt; 0 else \"right\", fontsize=9, color=INK_SECONDARY)\nax.set(xlabel=\"Constant prediction (100k USD)\", ylabel=\"Error (100k USD)\")\nax.legend(loc=\"lower right\")\n\n\n\n\n\n\n\n\nFigure 1: MAE and RMSE of predicting the same constant value for every district.\n\n\n\n\n\nThe MAE curve bottoms out at the median, the RMSE curve at the mean. So choosing a metric is choosing what the model should predict. For pricing, where the average cost must be covered, the mean is the right target and squared-error-type metrics are the right family. MAE answers a different question.\n\n\n\n\n\n\nWarningMAPE and other relative errors\n\n\n\nThe mean absolute percentage error, \\(\\frac{1}{n}\\sum \\lvert e_i / y_i \\rvert\\), is popular because it is unit-free. It is undefined when \\(y_i = 0\\), explodes when \\(y_i\\) is small, and penalizes over-prediction more than under-prediction, which pushes models to predict too low. Use it only for targets well away from zero, and never for pure premium.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html#looking-at-the-errors",
+    "href": "docs/continuous/error-metrics.html#looking-at-the-errors",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "Looking at the errors",
+    "text": "Looking at the errors\nA single number hides where a model errs. Two plots do most of the work:\n\nactual vs predicted: points should scatter evenly around the diagonal,\nresiduals vs predicted: residuals should scatter evenly around zero, with no trend, no fan shape and no visible structure.\n\n\n\nCode\nfig, axes = plt.subplots(2, 2, figsize=(9, 8.5))\nfor col, m in enumerate((\"GLM\", \"GBM\")):\n    plot_actual_vs_predicted(y, h[m], ax=axes[0, col], title=m)\n    plot_residuals(y, h[m], ax=axes[1, col])\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Actual vs predicted (top; the diagonal marks perfect prediction) and residuals vs predicted (bottom) for the GLM and the GBM. Color shows the number of districts per hexagon, on a log scale.\n\n\n\n\n\nThree things stand out, none of which the metrics table shows:\n\nA horizontal line at 5.0 (a diagonal stripe in the residual plots). 4.6% of districts have a value of exactly 5.0, because values were capped when the data was collected. The true values are higher, so the errors there are partly an artifact of the data, not of the model.\nThe GLM’s residuals trend downward. It under-predicts cheap districts and over-predicts expensive ones: the relationship isn’t linear, and a linear model can’t bend to follow it. It also predicts outside the possible range for 1.3% of districts (above the cap or below zero).\nThe GBM’s residuals are tighter and centered on zero across the whole range, consistent with its lower RMSE, but they widen for expensive districts. The errors are larger where values are larger, which is common for prices and amounts.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html#where-these-metrics-break-pure-premium",
+    "href": "docs/continuous/error-metrics.html#where-these-metrics-break-pure-premium",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "Where these metrics break: pure premium",
+    "text": "Where these metrics break: pure premium\nNow apply the same metrics to pure premium, weighted by exposure. We add one more ‘model’: predicting 0 for every policy.\n\np = pure_premium_predictions()\npreds = {m: p[m] for m in (\"Null\", \"GLM\", \"GBM\")} | {\"Always 0\": np.zeros(len(p))}\npd.DataFrame({m: regression_metrics(p[\"y\"], v, p[\"w\"]) for m, v in preds.items()}).round(4)\n\n\n\nTable 2: Exposure-weighted error metrics for pure premium (EUR per policy-year).\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\nAlways 0\n\n\n\n\nbias\n-1.0014\n-1.1435\n-3.6890\n-146.3359\n\n\nMAE\n278.0859\n272.7674\n270.9639\n146.3359\n\n\nRMSE\n4044.5788\n4043.7468\n4043.5154\n4047.2251\n\n\nR²\n-0.0000\n0.0004\n0.0005\n-0.0013\n\n\n\n\n\n\n\n\n\n\nThe results are strange:\n\n‘Always 0’ has the best MAE (146 against 271 for the GBM). Most policies have no claim, so the median pure premium is 0, and MAE rewards the median. A pricing model that charges nothing would win on MAE.\nRMSE is nearly identical for all models (about 4,044). It’s dominated by a few huge claims spread over short exposures, which no model can predict.\nR² is about 0.0005 for both models: practically zero, even though, as the next pages show, both models clearly separate low and high risks.\n\nThe problem isn’t the models. These metrics assume errors of similar size everywhere, and for insurance targets that assumption fails badly: most outcomes are exactly zero, the rest vary enormously, and the variance grows with the expected value. Such targets need a loss that matches their distribution: the deviance.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/error-metrics.html#takeaways",
+    "href": "docs/continuous/error-metrics.html#takeaways",
+    "title": "Error metrics: bias, MAE, RMSE and R²",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nBias checks systematic over- or under-prediction; MAE and RMSE give the typical error size in the target’s unit; R² compares with the Null model.\nChoosing a metric chooses what the model should predict: RMSE rewards the mean, MAE the median.\nPlot the residuals. Capped data, non-linear effects and growing error variance stay invisible in summary metrics.\nFor zero-heavy, skewed targets such as pure premium, MAE, RMSE and R² are misleading. Use deviance and ranking-based measures instead.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Error metrics: bias, MAE, RMSE and R²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html",
+    "href": "docs/continuous/deviance.html",
+    "title": "Deviance and D²",
+    "section": "",
+    "text": "Question answered: how well do the predictions fit, measured in a way that respects the target’s distribution?\nThe previous page ended with MAE, RMSE and R² failing on pure premium. This page introduces the metric the models were actually trained on: the deviance.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html#why-squared-error-doesnt-fit",
+    "href": "docs/continuous/deviance.html#why-squared-error-doesnt-fit",
+    "title": "Deviance and D²",
+    "section": "Why squared error doesn’t fit",
+    "text": "Why squared error doesn’t fit\nSquared error treats an error of 100 EUR the same everywhere. That makes sense when every observation is equally noisy. For insurance targets, the noise grows with the expected value: a risk expected to cost 1,000 EUR a year varies far more than one expected to cost 50 EUR. In the Tweedie family of distributions, used for such targets, this is explicit:\n\\[\n\\operatorname{Var}(Y) = \\phi \\, \\mu^{p},\n\\]\nwhere \\(\\mu\\) is the expected value, \\(\\phi\\) a dispersion parameter, and the power \\(p\\) describes how fast the variance grows with the mean.\n\n\n\n\n\n\n\n\nPower \\(p\\)\nDistribution\nTypical target\n\n\n\n\n0\nNormal\nerrors of constant size (house prices, roughly)\n\n\n1\nPoisson\nclaim counts, claim frequency\n\n\n1 &lt; p &lt; 2\ncompound Poisson–Gamma\npure premium: exactly 0 often, otherwise positive amounts\n\n\n2\nGamma\nclaim severity (strictly positive amounts)\n\n\n\nOur pure premium GLM uses \\(p = 1\\.9\\).",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html#the-deviance",
+    "href": "docs/continuous/deviance.html#the-deviance",
+    "title": "Deviance and D²",
+    "section": "The deviance",
+    "text": "The deviance\nThe unit deviance \\(d(y, \\mu)\\) measures how far the prediction \\(\\mu\\) is from the outcome \\(y\\), on the scale the distribution implies. For the Tweedie family with \\(1 &lt; p &lt; 2\\):\n\\[\nd(y, \\mu) = 2 \\left( \\frac{y^{2-p}}{(1-p)(2-p)} - \\frac{y\\,\\mu^{1-p}}{1-p} + \\frac{\\mu^{2-p}}{2-p} \\right).\n\\]\nIt’s twice the log-likelihood gap between a perfect prediction and \\(\\mu\\), so minimizing the mean deviance is maximum likelihood: the same criterion the GLM is fitted with. At \\(p = 0\\) it reduces to squared error, so squared error is just the deviance for a normal distribution.\nTwo properties make it suitable for pure premium:\n\nErrors are judged relative to the expected level. Missing by 100 EUR on a risk expected to cost 50 EUR counts more than missing by 100 EUR on a risk expected to cost 2,000 EUR.\nPredictions must be positive. Predicting \\(\\mu = 0\\) for a risk that can have claims gives an infinite deviance. ‘Always 0’, which won on MAE, is ruled out.\n\n\n\nCode\nrng = np.random.default_rng(0)\n# Compound Poisson-Gamma outcomes with mean 200: claims with probability ~5%, average size ~4,000\nn_claims = rng.poisson(0.05, 200_000)\noutcomes = np.array([rng.gamma(2.0, 2000.0, k).sum() for k in n_claims])\nmu = np.linspace(20, 800, 150)\ntweedie = np.array([tweedie_deviance(outcomes, m, TWEEDIE_POWER).mean() for m in mu])\nsquared = np.array([np.mean((outcomes - m) ** 2) for m in mu])\n\nfig, ax = plt.subplots(figsize=(6, 3.8))\nfor curve, name, color in [(squared, \"squared error\", METRIC_COLORS[0]),\n                           (tweedie, f\"Tweedie deviance (p = {TWEEDIE_POWER})\", METRIC_COLORS[1])]:\n    excess = curve - curve.min()\n    scale = excess[np.argmin(np.abs(mu - 100))]\n    ax.plot(mu, excess / scale, color=color, label=name)\nax.axvline(outcomes.mean(), color=INK_SECONDARY, linewidth=1)\nax.annotate(f\"true mean {outcomes.mean():.0f}\", (outcomes.mean(), 1), xycoords=(\"data\", \"axes fraction\"),\n            xytext=(4, -4), textcoords=\"offset points\", va=\"top\", fontsize=9, color=INK_SECONDARY)\nax.set(xlabel=\"Prediction μ (EUR)\", ylabel=\"Extra loss vs best prediction\\n(relative)\", ylim=(0, 3))\nax.legend(loc=\"upper right\", bbox_to_anchor=(1, 0.88))\n\n\n\n\n\n\n\n\nFigure 1: Penalty for predicting μ when the expected value is 200 EUR: squared error (scaled to match at μ = 100) against Tweedie deviance with p = 1.9, averaged over a simulated outcome distribution with that mean.\n\n\n\n\n\nBoth losses are minimized at the true mean, so both reward predicting the mean. They differ in how they punish a miss: squared error is symmetric, so predicting 0 costs as much as predicting double the mean. The deviance punishes under-prediction much harder, because a low \\(\\mu\\) claims that large outcomes are nearly impossible.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html#d²-the-deviance-version-of-r²",
+    "href": "docs/continuous/deviance.html#d²-the-deviance-version-of-r²",
+    "title": "Deviance and D²",
+    "section": "D²: the deviance version of R²",
+    "text": "D²: the deviance version of R²\nLike R², the fraction of deviance explained compares a model with the Null model:\n\\[\nD^2 = 1 - \\frac{\\sum_i w_i\\, d(y_i, \\hat\\mu_i)}{\\sum_i w_i\\, d(y_i, \\bar y)}.\n\\]\nWith \\(p = 0\\) it equals R². Like R², it is 0 for the Null model, can be negative for a model worse than the mean, and can’t be compared across datasets.\n\npd.DataFrame({\n    m: pd.concat([deviance_metrics(y, p[m], p[\"Null\"], w, TWEEDIE_POWER),\n                  regression_metrics(y, p[m], w)[[\"bias\", \"R²\"]]])\n    for m in (\"Null\", \"GLM\", \"GBM\")\n}).round(4)\n\n\n\nTable 1: Exposure-weighted Tweedie deviance (p = 1.9) and D² on the test set.\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\nmean deviance\n34.3828\n33.9464\n33.9215\n\n\nD²\n0.0000\n0.0127\n0.0134\n\n\nbias\n-1.0014\n-1.1435\n-3.6890\n\n\nR²\n-0.0000\n0.0004\n0.0005\n\n\n\n\n\n\n\n\n\n\nCompared with R², the deviance gives a clearer picture:\n\nBoth models explain about 1.3% of the deviance, roughly 26 times their R² (0.05% for the GBM): R² was drowned out by a few huge claims.\nThe GBM is slightly ahead of the GLM (1.34% against 1.27%). Whether a difference this small is real, and not test-set noise, is a question for the model-comparison page.\n\n\nIs a D² this small good?\nYes: values like this are normal for individual insurance outcomes. Whether a given policy has a claim this year is mostly chance, and no model can predict chance. A pricing model’s job isn’t to predict which policy will claim but to separate low risks from high risks. That ability shows up clearly in ranking and segmentation tools (Lorenz curves, Gini, lift and double lift charts), which barely react to the noise that dominates individual-level metrics. They are covered on the next page.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html#choosing-the-power",
+    "href": "docs/continuous/deviance.html#choosing-the-power",
+    "title": "Deviance and D²",
+    "section": "Choosing the power",
+    "text": "Choosing the power\nThe deviance depends on \\(p\\), and models can rank differently under different powers. A quick sensitivity check:\n\n\nCode\npd.DataFrame({\n    f\"p = {pw}\": {m: deviance_metrics(y, p[m], p[\"Null\"], w, pw)[\"D²\"] for m in (\"GLM\", \"GBM\")}\n    for pw in (1.2, 1.5, 1.9)\n}).round(4)\n\n\n\n\nTable 2: D² of each model under different Tweedie powers.\n\n\n\n\n\n\n\n\n\n\np = 1.2\np = 1.5\np = 1.9\n\n\n\n\nGLM\n0.0408\n0.0411\n0.0127\n\n\nGBM\n0.0452\n0.0445\n0.0134\n\n\n\n\n\n\n\n\n\n\nHere the GBM stays ahead under every power, but the level of D² changes a lot with \\(p\\). A D² is only meaningful together with the power it was computed with. Pick \\(p\\) to match the target, ideally the power used to train the model or one estimated from the data, and keep it fixed when comparing models. If the ranking of models flips between plausible powers, neither model is clearly better.\n\n\n\n\n\n\nNoteA note on weights\n\n\n\nPure premium is a rate per policy-year, so a policy observed for a week gives a very noisy rate. Weighting each policy’s deviance by its exposure gives a one-week policy 1/52 of the weight of a full-year policy, consistent with how the models were fitted. Unweighted metrics would be dominated by short policies with extreme rates.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/continuous/deviance.html#takeaways",
+    "href": "docs/continuous/deviance.html#takeaways",
+    "title": "Deviance and D²",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nThe deviance is the error measure that matches the target’s distribution, and it’s what GLMs and GBMs actually minimize.\nFor insurance targets use Tweedie (pure premium), Poisson (frequency) or Gamma (severity) deviance, with exposure or claim-count weights.\nD² is the fraction of the Null model’s deviance explained. Small values are normal when outcomes are mostly chance.\nWhen individual outcomes are this noisy, ranking and segmentation measures show a model’s value better than any average error.",
+    "crumbs": [
+      "Continuous outcomes",
+      "Deviance and D²"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html",
+    "href": "docs/binary/precision-recall.html",
+    "title": "Precision–recall curves",
+    "section": "",
+    "text": "Question answered: of the cases the model flags, how many are real positives, and how many of the real positives does it find?",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#why-look-beyond-roc",
+    "href": "docs/binary/precision-recall.html#why-look-beyond-roc",
+    "title": "Precision–recall curves",
+    "section": "Why look beyond ROC",
+    "text": "Why look beyond ROC\nThe ROC curve measures false alarms relative to all negatives: the false positive rate is FP / (FP + TN). With 96.3% of policies without a claim, that denominator is huge, and a small false positive rate can hide a large number of false alarms:\nAt a threshold of 0.1, the GBM has a false positive rate of only 3.3%: a point far to the left on the ROC curve. But that is 5,412 false alarms against 1,180 correctly flagged claims, so only 18% of the flagged policies actually have a claim.\nPrecision relates false alarms to true hits instead of to all negatives, so it shows directly what happens among the flagged cases. That makes it the natural metric when positives are rare and attention goes to the cases the model flags: fraud checks, claim reviews, medical screening, marketing campaigns.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#the-precisionrecall-curve",
+    "href": "docs/binary/precision-recall.html#the-precisionrecall-curve",
+    "title": "Precision–recall curves",
+    "section": "The precision–recall curve",
+    "text": "The precision–recall curve\nThe PR curve uses the same threshold sweep as the ROC curve, but plots\n\nrecall (true positive rate: the share of all claims we flag) on the x-axis, against\nprecision (the share of flagged policies with a claim) on the y-axis.\n\nStarting from a very high threshold, only the highest-risk policies are flagged: recall is small and, for a good model, precision is high. Lowering the threshold raises recall and, usually, lowers precision, until everything is flagged: recall 1 and precision equal to the overall claim rate.\n\n\nCode\nax = plot_pr(y, {m: b[m] for m in models}, ylim=0.5)\n\n\n\n\n\n\n\n\nFigure 1: Precision–recall curves on the test set. Thin gray curves connect points with the same F1 score.\n\n\n\n\n\nThree things differ from a ROC plot:\n\nThe baseline is the claim rate, not a diagonal. Flagging at random gives a precision equal to the claim rate (3.7%) at every recall.\nThe curve isn’t monotone. Precision can go up or down when the threshold drops, so the curve is jagged, especially on the left where few policies are flagged and each one changes precision noticeably.\nThe left part matters most. It shows the highest-risk policies, which is where a review or intervention would start. Here the GBM clearly beats the GLM, even though their ROC curves were close.\n\nThe gray curves connect points of equal F1 score, the harmonic mean of precision and recall. The best F1 the GBM reaches is 0.185 (at threshold 0.10), against 0.153 for the GLM. Low values like these are typical for rare events. F1 is only a convenient summary: it weights precision and recall equally, which rarely matches the actual costs of misses and false alarms.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#average-precision",
+    "href": "docs/binary/precision-recall.html#average-precision",
+    "title": "Precision–recall curves",
+    "section": "Average precision",
+    "text": "Average precision\nAverage precision (AP) condenses the PR curve into one number: the precision at each threshold, weighted by how much recall that threshold adds,\n\\[\n\\text{AP} = \\sum_k (R_k - R_{k-1})\\, P_k,\n\\]\nwhere \\(R_k\\) and \\(P_k\\) are recall and precision after lowering the threshold past the \\(k\\)-th distinct score. The Null model’s AP equals the claim rate.\nUsing the same ten toy policies as on the ROC page:\n\ntoy_y = np.array([1, 1, 0, 1, 0, 0, 1, 0, 0, 0])\ntoy_p = np.array([0.9, 0.8, 0.7, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])\ntoy = pr_points(toy_y, toy_p)\ntoy[\"AP contribution\"] = np.diff(np.r_[0, toy[\"recall\"]]) * toy[\"precision\"]\ntoy.round(3)\n\n\n\nTable 1: Precision and recall of the ten toy policies, and each threshold’s contribution to AP.\n\n\n\n\n\n\n\n\n\n\nthreshold\nrecall\nprecision\nAP contribution\n\n\n\n\n0\n0.90\n0.25\n1.000\n0.250\n\n\n1\n0.80\n0.50\n1.000\n0.250\n\n\n2\n0.70\n0.50\n0.667\n0.000\n\n\n3\n0.60\n0.75\n0.750\n0.188\n\n\n4\n0.55\n0.75\n0.600\n0.000\n\n\n5\n0.50\n0.75\n0.500\n0.000\n\n\n6\n0.40\n1.00\n0.571\n0.143\n\n\n7\n0.30\n1.00\n0.500\n0.000\n\n\n8\n0.20\n1.00\n0.444\n0.000\n\n\n9\n0.10\n1.00\n0.400\n0.000\n\n\n\n\n\n\n\n\n\n\nOnly the thresholds that add a claim contribute, each with weight 1/4. The AP is 0.830: on average, when the threshold passes a policy with a claim, 83% of the flagged policies have a claim.\n\n\n\n\n\n\nWarningDon’t use the trapezoidal area\n\n\n\nComputing the area under the PR curve with the trapezoidal rule (as for ROC) connects the points with straight lines. Between two PR points, precision does not change linearly, so the result is off, in either direction, and it also depends on which starting point is assumed at recall 0. On the toy example it gives 0.811 instead of 0.830. With many distinct scores the gap shrinks, but AP is the well-defined summary: average_precision_score in scikit-learn, whereas sklearn.metrics.auc on a PR curve is the trapezoidal version.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#roc-and-pr-tell-different-stories",
+    "href": "docs/binary/precision-recall.html#roc-and-pr-tell-different-stories",
+    "title": "Precision–recall curves",
+    "section": "ROC and PR tell different stories",
+    "text": "ROC and PR tell different stories\n\n\nCode\npd.DataFrame({\n    \"AUC\": auc,\n    \"Average precision\": ap,\n    \"AP / claim rate\": {m: ap[m] / rate for m in models},\n}).round(3)\n\n\n\n\nTable 2: Ranking metrics of both models. ‘AP / claim rate’ shows how many times better than random the average precision is.\n\n\n\n\n\n\n\n\n\n\nAUC\nAverage precision\nAP / claim rate\n\n\n\n\nGLM\n0.694\n0.093\n2.534\n\n\nGBM\n0.713\n0.116\n3.152\n\n\n\n\n\n\n\n\n\n\nThe GBM’s AUC is 0.018 higher than the GLM’s, a modest 3%. Its average precision is 24% higher. Both metrics summarize the same ranking, but they weight it differently:\n\nAUC weighs all pairs of a claim and a non-claim equally, wherever they are in the ranking.\nAP weighs the top of the ranking most: a claim ranked first raises precision at every later threshold.\n\nThe GBM’s advantage is concentrated in its highest-risk predictions, so AP shows it more clearly.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#precision-and-lift-in-the-top-k",
+    "href": "docs/binary/precision-recall.html#precision-and-lift-in-the-top-k",
+    "title": "Precision–recall curves",
+    "section": "Precision and lift in the top k%",
+    "text": "Precision and lift in the top k%\nIn practice, capacity is often fixed: ‘we can review 5% of policies’. Then the relevant question is how good the top 5% of the ranking is. Two measures answer it:\n\nprecision at k%: the share of flagged policies with a claim, and\nlift at k%: precision divided by the overall claim rate, i.e. how many times more claims the flagged group contains than a random group of the same size.\n\n\n\nCode\nshares = [0.01, 0.05, 0.10, 0.20]\ntop = pd.concat(\n    {m: pd.DataFrame({f\"top {s:.0%}\": top_share_metrics(y, b[m], s) for s in shares}).T for m in models},\n    axis=1,\n)\ntop.round(3)\n\n\n\n\nTable 3: Flagging the k% of policies with the highest predicted probability.\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\n\n\n\nprecision\nrecall\nlift\nprecision\nrecall\nlift\n\n\n\n\ntop 1%\n0.206\n0.056\n5.609\n0.282\n0.077\n7.677\n\n\ntop 5%\n0.128\n0.173\n3.467\n0.158\n0.214\n4.284\n\n\ntop 10%\n0.104\n0.283\n2.832\n0.117\n0.318\n3.175\n\n\ntop 20%\n0.080\n0.432\n2.162\n0.084\n0.455\n2.277\n\n\n\n\n\n\n\n\n\n\nFlagging the top 1%, the GBM finds 7.7 times more claims than random selection would, the GLM 5.6 times. As the flagged share grows, precision falls towards the claim rate and lift towards 1. Showing lift for every decile of the ranking gives a lift chart, covered for pure premium on the lift chart page.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#precision-depends-on-the-claim-rate",
+    "href": "docs/binary/precision-recall.html#precision-depends-on-the-claim-rate",
+    "title": "Precision–recall curves",
+    "section": "Precision depends on the claim rate",
+    "text": "Precision depends on the claim rate\nPrecision has a property that matters a lot in practice: unlike the ROC curve, it depends on the base rate. At any threshold,\n\\[\n\\text{precision} = \\frac{\\pi \\cdot \\text{TPR}}{\\pi \\cdot \\text{TPR} + (1 - \\pi) \\cdot \\text{FPR}},\n\\]\nwhere \\(\\pi\\) is the share of positives. TPR and FPR are properties of the model alone. Precision mixes them with \\(\\pi\\). To see the effect, we keep all policies with a claim and randomly drop policies without a claim until the claim rate reaches 10%, 20% and 50%. The model and its ranking don’t change.\n\nrng = np.random.default_rng(0)\npos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)\nsamples = {}\nfor target in (rate, 0.10, 0.20, 0.50):\n    n_neg = min(len(neg), int(len(pos) * (1 - target) / target))\n    idx = np.r_[pos, rng.choice(neg, n_neg, replace=False)]\n    samples[f\"{target:.1%}\"] = (y.to_numpy()[idx], b[\"GBM\"].to_numpy()[idx])\n\n\n\nCode\nramp = [\"#86b6ef\", \"#3987e5\", \"#1c5cab\", \"#0d366b\"]  # light to dark: rising claim rate\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.6))\naxes[0].plot([0, 1], [0, 1], color=MUTED, linewidth=1)\nfor (label, (ys, ps)), color in zip(samples.items(), ramp):\n    roc, pr = roc_points(ys, ps), pr_points(ys, ps)\n    axes[0].plot(roc[\"fpr\"], roc[\"tpr\"], color=color, label=f\"claim rate {label} (AUC {auc_rank(ys, ps):.3f})\")\n    axes[1].plot(np.r_[0, pr[\"recall\"]], np.r_[pr[\"precision\"].iloc[0], pr[\"precision\"]],\n                 drawstyle=\"steps-pre\", color=color, label=f\"claim rate {label} (AP {average_precision(ys, ps):.3f})\")\naxes[0].set(xlabel=\"False positive rate\", ylabel=\"True positive rate\", xlim=(0, 1), ylim=(0, 1.01), aspect=\"equal\")\naxes[1].set(xlabel=\"Recall\", ylabel=\"Precision\", xlim=(0, 1), ylim=(0, 1.01))\naxes[0].legend(loc=\"lower right\")\naxes[1].legend(loc=\"upper right\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: The same GBM evaluated at different claim rates (by subsampling policies without a claim). Left: ROC curves. Right: precision–recall curves.\n\n\n\n\n\nThe ROC curves lie on top of each other: AUC doesn’t change. The PR curves rise with the claim rate, and AP climbs from 0.12 to 0.71. Same model, same ranking, different AP. This has practical consequences:\n\nDon’t compare AP across datasets, segments or time periods with different base rates. A higher AP may only mean more positives. Report the base rate next to every AP, or report AP / base rate.\nBalanced test sets inflate precision. Undersampling negatives, common in fraud and medical studies, makes precision look far better than it will be in production.\nPrecision drifts when the base rate drifts. If the claim rate drops next year, the precision of the same model at the same threshold drops too, even though nothing about the model has changed. This is one reason to monitor the base rate along with model metrics.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#roc-or-pr",
+    "href": "docs/binary/precision-recall.html#roc-or-pr",
+    "title": "Precision–recall curves",
+    "section": "ROC or PR?",
+    "text": "ROC or PR?\nThe two curves contain the same information (given the base rate, every ROC point maps to exactly one PR point), but they emphasize different things:\n\n\n\n\n\n\n\n\n\nROC / AUC\nPR / AP\n\n\n\n\nFocus\nthe whole ranking, both classes\nthe top of the ranking, positive class\n\n\nFalse alarms measured relative to\nall negatives\ntrue hits\n\n\nDepends on base rate\nno\nyes\n\n\nRandom baseline\n0.5\nbase rate\n\n\nGood for\ncomparing rankings across populations; when both error types matter\nrare positives where only the flagged cases are acted on\n\n\n\nIt’s often claimed that AP is ‘the right metric for imbalanced data’. That’s too simple. Imbalance alone doesn’t make AUC wrong. Recent work (McDermott et al., 2024) shows that AP favors improvements at the top of the ranking and can favor models that work best for the subgroups with the highest base rates. Choose by the question: use AUC when the whole ranking matters, AP or precision at k% when only the top of the ranking is acted on, and report the base rate with any precision-based metric.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
+    "objectID": "docs/binary/precision-recall.html#takeaways",
+    "href": "docs/binary/precision-recall.html#takeaways",
+    "title": "Precision–recall curves",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nPrecision relates false alarms to true hits, which is what matters when positives are rare and only flagged cases are acted on.\nThe PR curve’s baseline is the base rate. Average precision is its correct summary; don’t use the trapezoidal area.\nAP weights the top of the ranking. Here it shows the GBM’s advantage (24%) much more clearly than AUC (3%).\nWith fixed capacity, report precision and lift at k%.\nPrecision and AP depend on the base rate. Never compare them across populations with different base rates, and watch them change when the base rate drifts.",
+    "crumbs": [
+      "Binary outcomes",
+      "Precision–recall curves"
+    ]
+  },
+  {
     "objectID": "docs/binary/calibration.html",
     "href": "docs/binary/calibration.html",
     "title": "Calibration and proper scoring rules",
@@ -576,138 +708,6 @@
     "crumbs": [
       "Binary outcomes",
       "Calibration and proper scoring rules"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html",
-    "href": "docs/continuous/lift-lorenz.html",
-    "title": "Lift charts and Lorenz curves",
-    "section": "",
-    "text": "Question answered: does the model separate low risks from high risks, and is its prediction right for each risk segment?\nThe deviance page ended with D² values of about 1.3%: individual claims are mostly chance, so any average over individual errors is small. A pricing model is judged on something else: whether the policies it calls expensive really cost more, as a group, than the ones it calls cheap. Grouping averages away the noise. This page covers the standard tools for that:",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html#the-lift-chart",
-    "href": "docs/continuous/lift-lorenz.html#the-lift-chart",
-    "title": "Lift charts and Lorenz curves",
-    "section": "The lift chart",
-    "text": "The lift chart\nTo draw a lift chart (also called a quantile plot):\n\nsort the test policies by their predicted pure premium,\ncut them into 10 groups (deciles) holding the same total exposure,\nper decile, compare the exposure-weighted average prediction with the average actual pure premium.\n\nThe deciles hold equal exposure rather than equal numbers of policies, because pure premium is a rate per policy-year: a decile full of short policies would hold far less information than its policy count suggests.\n\n\nCode\nlift = {m: segment_table(y, {m: p[m]}, w, sort_by=p[m]) for m in models}\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.2), sharey=True)\nfor ax, m in zip(axes, models):\n    plot_segments(lift[m], [m], ax=ax, xlabel=f\"Decile of {m} prediction (1 = lowest)\", title=m)\naxes[1].set_ylabel(\"\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Lift charts on the test set: average actual and predicted pure premium per decile of each model’s prediction (deciles of equal exposure). Bars are 95% intervals for the actual average.\n\n\n\n\n\nA good lift chart shows three things:\n\nMonotonicity. Actual cost should rise from decile to decile. Both models get there broadly, with a few dips in the middle.\nSpread. The steeper the actual curve, the better the model separates risks. The ratio of the top to the bottom decile is a common summary (the ‘lift’ that gives the chart its name).\nAgreement. The predicted line should run through the actual points. A gap shows the predictions are off for that segment even when the overall average is right: calibration, checked by group.\n\n\n\nCode\npd.DataFrame({\n    m: {\n        \"actual, decile 1 (EUR)\": t.loc[1, \"actual\"],\n        \"actual, decile 10 (EUR)\": t.loc[10, \"actual\"],\n        \"lift: decile 10 ÷ decile 1\": t.loc[10, \"actual\"] / t.loc[1, \"actual\"],\n        \"lift: decile 10 ÷ overall\": t.loc[10, \"actual\"] / mean,\n        \"predicted ÷ actual, decile 10\": t.loc[10, m] / t.loc[10, \"actual\"],\n    }\n    for m, t in lift.items()\n}).round(2)\n\n\n\n\nTable 1: Summaries of the lift charts. Lift is the top decile’s actual average divided by the bottom decile’s (or by the overall average).\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\n\n\n\n\nactual, decile 1 (EUR)\n73.68\n51.89\n\n\nactual, decile 10 (EUR)\n344.87\n380.61\n\n\nlift: decile 10 ÷ decile 1\n4.68\n7.34\n\n\nlift: decile 10 ÷ overall\n2.36\n2.60\n\n\npredicted ÷ actual, decile 10\n1.23\n0.98\n\n\n\n\n\n\n\n\n\n\nThe GBM’s top decile costs 7.3 times its bottom decile, against 4.7 times for the GLM. Where the models differ most is the top decile: the GLM predicts 23% more than its riskiest policies actually cost, while the GBM is within 2%. The GLM’s predictions are too extreme at the top, the regression-to-the-mean pattern the calibration page described for probabilities.\n\n\n\n\n\n\nNoteRead the intervals before reading the dips\n\n\n\nEach decile holds 12,871 to 20,188 policies, but only 312 to 1,496 of them have a claim, and claim sizes vary enormously. The 95% intervals are wide, so a dip such as the GBM’s 4th decile is well within noise. Don’t redesign a model to remove a wiggle that the intervals cover.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html#the-double-lift-chart",
-    "href": "docs/continuous/lift-lorenz.html#the-double-lift-chart",
-    "title": "Lift charts and Lorenz curves",
-    "section": "The double lift chart",
-    "text": "The double lift chart\nTwo lift charts side by side are hard to compare: both look good, and their deciles contain different policies. The double lift chart compares the two models directly, on the policies where they disagree:\n\nput both models on the same overall level (here: rescale each so its average on the test set equals the actual average), so a difference in the overall level doesn’t look like a difference in segmentation;\nsort the policies by the ratio GBM ÷ GLM, and cut them into deciles of equal exposure;\nper decile, compare the actual average with both models’ averages.\n\nDecile 1 holds the policies the GBM rates much lower than the GLM, decile 10 those it rates much higher. In the middle the models agree.\n\nrebalanced = {m: p[m] * mean / np.average(p[m], weights=w) for m in models}\ndouble = segment_table(y, rebalanced, w, sort_by=rebalanced[\"GBM\"] / rebalanced[\"GLM\"])\n\n\n\nCode\nxlabel = \"Decile of GBM ÷ GLM (1 = GBM much lower)\"\nfig, axes = plt.subplots(1, 2, figsize=(10, 4.2))\nplot_segments(double, models, ax=axes[0], xlabel=xlabel, legend_loc=\"upper center\")\nplot_segments(double, models, ax=axes[1], ratio=True, xlabel=xlabel)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Double lift chart, GBM against GLM. Left: average actual and predicted pure premium per decile of the ratio GBM ÷ GLM. Right: actual ÷ predicted for each model; 1 means the model’s average is right for that decile.\n\n\n\n\n\nThe left panel answers the question ‘who is right where they disagree?’ In decile 1, the GLM predicts 349 EUR, the GBM 182 EUR, and the actual average is 255 EUR. In decile 10, the GLM predicts 104, the GBM 226, and the actual average is 159. Neither model wins: in both tails the truth lies between them.\nThe right panel shows the same comparison as actual ÷ predicted. The better model is the one whose curve stays flat at 1. Insurers read this as a loss ratio: if premiums were set by the GLM, actual ÷ GLM is the loss ratio each segment would produce.\n\nActual ÷ GLM rises from 0.73 to 1.53. The GBM finds policies the GLM overprices (left) and underprices (right).\nActual ÷ GBM falls from 1.40 to 0.71. The GLM finds mispricing in the GBM just as well.\n\nEach model knows something the other doesn’t, and each overreacts where it disagrees with the other. A curve that crosses 1 in the opposite direction would mean the model is worse than useless where the two differ: its deviations from the other model point the wrong way.\n\nWhat the double lift chart suggests: blend\nWhen both models are partly right, a combination usually beats either. A simple blend is the geometric mean of the two predictions (an average on the log scale, which suits multiplicative pricing models):\n\nblend = np.sqrt(rebalanced[\"GLM\"] * rebalanced[\"GBM\"])\nblend *= mean / np.average(blend, weights=w)\n\n\n\nCode\ndouble_blend = segment_table(y, {\"Blend\": blend, \"GBM\": rebalanced[\"GBM\"]}, w, sort_by=blend / rebalanced[\"GBM\"])\nax = plot_segments(double_blend, [\"Blend\", \"GBM\"], ratio=True, xlabel=\"Decile of Blend ÷ GBM (1 = Blend much lower)\")\nax.figure.set_size_inches(6, 4)\n\n\n\n\n\n\n\n\nFigure 3: Double lift chart, blend against GBM: actual ÷ predicted per decile of the ratio Blend ÷ GBM.\n\n\n\n\n\n\nscores = {**{m: p[m] for m in models}, \"Blend\": blend}\npd.DataFrame({\n    m: {\"Gini\": gini_index(y, s, w), \"D²\": deviance_metrics(y, s, p[\"Null\"], w, TWEEDIE_POWER)[\"D²\"]}\n    for m, s in scores.items()\n}).round(4)\n\n\n\nTable 2: Gini index and D² (Tweedie, p = 1.9) of the two models and their blend on the test set.\n\n\n\n\n\n\n\n\n\n\nGLM\nGBM\nBlend\n\n\n\n\nGini\n0.2928\n0.2944\n0.3078\n\n\nD²\n0.0127\n0.0134\n0.0147\n\n\n\n\n\n\n\n\n\n\nAgainst the blend, the GBM’s actual ÷ predicted swings away from 1 at both ends, while the blend’s stays near 1 within the noise: in this pairing, the blend wins. The blend also has the highest Gini and D². Two caveats: the comparison is on the test set the double lift chart was read from, so a blend chosen this way should be confirmed on fresh data; and whether its improvement is larger than sampling noise is a question for the model-comparison page.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html#the-lorenz-curve-and-the-gini-index",
-    "href": "docs/continuous/lift-lorenz.html#the-lorenz-curve-and-the-gini-index",
-    "title": "Lift charts and Lorenz curves",
-    "section": "The Lorenz curve and the Gini index",
-    "text": "The Lorenz curve and the Gini index\nThe lift chart shows separation decile by decile. The Lorenz curve shows it as one continuous curve:\n\nsort the policies from the lowest to the highest prediction,\nwalk along the sorted list and plot the share of total exposure covered so far (x-axis) against the share of total claim cost it contains (y-axis).\n\nA model that can’t separate risks (the Null model) gives the diagonal: the first 30% of exposure carries 30% of the claim cost. A model that separates well puts little claim cost into its low-risk policies, so its curve sags below the diagonal. The oracle sorts by the actual outcome, the best ranking possible.\n\n\nCode\nax = plot_lorenz(y, {m: p[m] for m in models}, w)\nax.figure.set_size_inches(5.5, 5.5)\n\n\n\n\n\n\n\n\nFigure 4: Lorenz curves on the test set, policies sorted from lowest to highest prediction. The dashed curve sorts by the actual outcome.\n\n\n\n\n\nThe GBM’s lowest-risk half of the exposure carries only 32% of the claim cost. The Gini index condenses the curve into one number: twice the area between the diagonal and the curve,\n\\[\n\\text{Gini} = 1 - 2 \\int_0^1 L(x)\\,dx,\n\\]\nwhere \\(L(x)\\) is the share of claim cost in the lowest-predicted share \\(x\\) of the exposure. It is 0 for the Null model and grows the better the model ranks the policies. The two models score 0.293 (GLM) and 0.294 (GBM), a relative difference of 0.6%. On D² the GBM was 6% ahead, and its top-to-bottom lift was much larger. The Gini weighs the whole ranking, while the lift ratio looks only at the two extreme deciles, each resting on a few hundred claims. A single decile ratio is a much noisier summary than the Gini.\nThe oracle’s Gini of 0.984 is not a realistic target: 95% of the exposure had no claim at all, and only hindsight can put those policies first. Some authors report a normalized Gini (Gini ÷ oracle Gini), but the oracle mostly reflects how many policies happened to have no claims, so it adds little here.\n\n\n\n\n\n\nNoteRelation to the classification Gini\n\n\n\nThe ROC page defined Gini = 2·AUC − 1 for a binary target. For a 0/1 outcome with equal weights, the Lorenz Gini equals \\((1 - \\pi)(2 \\cdot \\text{AUC} - 1)\\), where \\(\\pi\\) is the share of positives (the tests in tests/ check this). The factor \\(1 - \\pi\\) is the oracle’s Gini: dividing by it gives the normalized Gini, which equals 2·AUC − 1. Both measure how well the model ranks. The Lorenz version extends the idea to outcomes that aren’t 0/1, such as claim cost, and to weighted observations.\n\n\n\nWhat the Gini can’t see\nThe Gini depends only on the ranking. Any transformation that keeps the order of the predictions leaves it unchanged, however wrong the predictions become:\n\nsquared = p[\"GBM\"] ** 2 * np.average(p[\"GBM\"], weights=w) / np.average(p[\"GBM\"] ** 2, weights=w)\nvariants = {\"GBM\": p[\"GBM\"], \"2 × GBM\": 2 * p[\"GBM\"], \"GBM squared\": squared}\npd.DataFrame({\n    name: {\n        \"Gini\": gini_index(y, s, w),\n        \"D²\": deviance_metrics(y, s, p[\"Null\"], w, TWEEDIE_POWER)[\"D²\"],\n        \"bias (EUR)\": regression_metrics(y, s, w)[\"bias\"],\n    }\n    for name, s in variants.items()\n}).round(4)\n\n\n\nTable 3: Three versions of the GBM with identical rankings. ‘Squared’ is GBM², rescaled to the same average, so its overall level is right but its spread is far too wide.\n\n\n\n\n\n\n\n\n\n\nGBM\n2 × GBM\nGBM squared\n\n\n\n\nGini\n0.2944\n0.2944\n0.2944\n\n\nD²\n0.0134\n-0.0050\n-0.0186\n\n\nbias (EUR)\n-3.6890\n138.9580\n-3.6890\n\n\n\n\n\n\n\n\n\n\nDoubling every prediction, or squaring them, keeps the Gini exactly the same. D² drops below 0 (worse than predicting the average for everyone), and a lift chart would show the gap at once. So:\n\nNever use the Gini alone. Pair it with a lift chart or a calibration check, and with the deviance.\nDon’t compare Ginis across portfolios or years. Like AUC, the Gini depends on how heterogeneous the population is: a portfolio with more varied risks gives a higher Gini for an equally good model.\nSmall differences are noise. The GLM and GBM differ by 0.002, far less than the test-set variability of a Gini on data this noisy. Testing such differences is the subject of the model-comparison page.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html#which-tool-for-which-question",
-    "href": "docs/continuous/lift-lorenz.html#which-tool-for-which-question",
-    "title": "Lift charts and Lorenz curves",
-    "section": "Which tool for which question",
-    "text": "Which tool for which question\n\n\n\n\n\n\n\n\nTool\nAnswers\nWatch out for\n\n\n\n\nLift chart\nDoes cost rise with the prediction, and does the prediction match per segment?\nnoisy deciles: read the intervals\n\n\nDouble lift chart\nWhere two models disagree, which is right?\nrebalance both models to the same level first\n\n\nLorenz curve / Gini\nHow well does the model rank risks, in one number?\nblind to calibration and level; not comparable across portfolios\n\n\nDeviance / D²\nHow good are the individual predictions, ranking and level together?\nsmall values are normal; hard to interpret alone\n\n\n\nThe tools complement each other: the Gini and the lift spread measure ranking, the agreement in the lift chart measures calibration by segment, the double lift chart compares two candidate models, and the deviance checks both ranking and level at once.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/lift-lorenz.html#takeaways",
-    "href": "docs/continuous/lift-lorenz.html#takeaways",
-    "title": "Lift charts and Lorenz curves",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nWith noisy outcomes, judge a pricing model on groups: deciles of equal exposure average away the noise that dominates individual-level metrics.\nA lift chart should rise monotonically, be steep, and have predictions that run through the actual points. Here the GLM overpredicts its top decile by 23%.\nA double lift chart compares two models where they disagree. Here each model finds mispricing in the other, and a simple blend beats both.\nThe Gini index summarizes the Lorenz curve: 0.293 (GLM) against 0.294 (GBM). It measures ranking only, so a badly miscalibrated model can have the same Gini as a good one.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Lift charts and Lorenz curves"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html",
-    "href": "docs/continuous/error-metrics.html",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "",
-    "text": "Question answered: how far are the predictions from the actual values, on average?\nWe start with California Housing (median house value per district, in units of 100,000 USD), a target with a strong signal where these metrics behave as textbooks describe. At the end, we apply them to pure premium and watch them break.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html#the-four-basic-metrics",
-    "href": "docs/continuous/error-metrics.html#the-four-basic-metrics",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "The four basic metrics",
-    "text": "The four basic metrics\nWith errors \\(e_i = \\hat y_i - y_i\\) over \\(n\\) test cases:\n\n\n\n\n\n\n\n\n\nMetric\nFormula\nUnit\nQuestion it answers\n\n\n\n\nBias (mean error)\n\\(\\frac{1}{n}\\sum e_i\\)\ntarget\nIs the model systematically too high or too low?\n\n\nMAE (mean absolute error)\n\\(\\frac{1}{n}\\sum \\lvert e_i \\rvert\\)\ntarget\nHow large is a typical error?\n\n\nRMSE (root mean squared error)\n\\(\\sqrt{\\frac{1}{n}\\sum e_i^2}\\)\ntarget\nHow large are errors, with big ones weighted more?\n\n\nR² (coefficient of determination)\n\\(1 - \\frac{\\sum e_i^2}{\\sum (y_i - \\bar y)^2}\\)\nnone\nWhat share of the variance does the model explain?\n\n\n\nWith weights \\(w_i\\) (as for pure premium, weighted by exposure), each sum becomes a weighted sum and \\(n\\) becomes \\(\\sum w_i\\).\n\npd.DataFrame({m: regression_metrics(y, h[m]) for m in (\"Null\", \"GLM\", \"GBM\")}).round(3)\n\n\n\nTable 1: Test-set error metrics on California Housing (units of 100,000 USD).\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\n\n\n\n\nbias\n0.007\n-0.001\n0.010\n\n\nMAE\n0.910\n0.530\n0.297\n\n\nRMSE\n1.150\n0.736\n0.448\n\n\nR²\n-0.000\n0.591\n0.848\n\n\n\n\n\n\n\n\n\n\nReading the table:\n\nBias is close to zero for all models. That’s expected on data like the training data: least squares fits reproduce the mean. Bias becomes interesting once the data shifts: a growing bias is one of the first signs of drift (covered on a later page).\nThe GBM’s typical error (MAE) is 29,724 USD, against 52,970 USD for the GLM and 91,005 USD for always predicting the mean.\nRMSE is always at least as large as MAE. The gap grows with the share of large errors: squaring makes a single error of 3 count as much as nine errors of 1.\nR² compares the squared error with that of the Null model: the GBM removes 85% of the Null model’s squared error, the GLM 59%.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html#what-mae-and-rmse-reward",
-    "href": "docs/continuous/error-metrics.html#what-mae-and-rmse-reward",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "What MAE and RMSE reward",
-    "text": "What MAE and RMSE reward\nMAE and RMSE don’t just weigh errors differently, they reward different predictions:\n\nSquared error is minimized by the mean. A model trained or selected on RMSE learns the conditional mean of the target.\nAbsolute error is minimized by the median. A model selected on MAE learns the conditional median.\n\nFor a symmetric target the two coincide. For a skewed target, such as house prices, claim costs or incomes, they don’t. Scoring every constant prediction shows this:\n\n\nCode\nc = np.linspace(0.5, 4.0, 200)\nmae = [np.mean(np.abs(y - v)) for v in c]\nrmse = [np.sqrt(np.mean((y - v) ** 2)) for v in c]\n\nfig, ax = plt.subplots(figsize=(6, 3.8))\nfor values, name, color in [(mae, \"MAE\", METRIC_COLORS[0]), (rmse, \"RMSE\", METRIC_COLORS[1])]:\n    ax.plot(c, values, color=color, label=name)\n    ax.annotate(name, (c[-1], values[-1]), xytext=(4, 0), textcoords=\"offset points\",\n                va=\"center\", fontsize=9, color=INK_SECONDARY)\nfor stat, value, side in [(\"median\", y.median(), -1), (\"mean\", y.mean(), 1)]:\n    ax.axvline(value, color=INK_SECONDARY, linewidth=1)\n    ax.annotate(f\"{stat} {value:.2f}\", (value, 1), xycoords=(\"data\", \"axes fraction\"),\n                xytext=(4 * side, -4), textcoords=\"offset points\", va=\"top\",\n                ha=\"left\" if side &gt; 0 else \"right\", fontsize=9, color=INK_SECONDARY)\nax.set(xlabel=\"Constant prediction (100k USD)\", ylabel=\"Error (100k USD)\")\nax.legend(loc=\"lower right\")\n\n\n\n\n\n\n\n\nFigure 1: MAE and RMSE of predicting the same constant value for every district.\n\n\n\n\n\nThe MAE curve bottoms out at the median, the RMSE curve at the mean. So choosing a metric is choosing what the model should predict. For pricing, where the average cost must be covered, the mean is the right target and squared-error-type metrics are the right family. MAE answers a different question.\n\n\n\n\n\n\nWarningMAPE and other relative errors\n\n\n\nThe mean absolute percentage error, \\(\\frac{1}{n}\\sum \\lvert e_i / y_i \\rvert\\), is popular because it is unit-free. It is undefined when \\(y_i = 0\\), explodes when \\(y_i\\) is small, and penalizes over-prediction more than under-prediction, which pushes models to predict too low. Use it only for targets well away from zero, and never for pure premium.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html#looking-at-the-errors",
-    "href": "docs/continuous/error-metrics.html#looking-at-the-errors",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "Looking at the errors",
-    "text": "Looking at the errors\nA single number hides where a model errs. Two plots do most of the work:\n\nactual vs predicted: points should scatter evenly around the diagonal,\nresiduals vs predicted: residuals should scatter evenly around zero, with no trend, no fan shape and no visible structure.\n\n\n\nCode\nfig, axes = plt.subplots(2, 2, figsize=(9, 8.5))\nfor col, m in enumerate((\"GLM\", \"GBM\")):\n    plot_actual_vs_predicted(y, h[m], ax=axes[0, col], title=m)\n    plot_residuals(y, h[m], ax=axes[1, col])\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: Actual vs predicted (top; the diagonal marks perfect prediction) and residuals vs predicted (bottom) for the GLM and the GBM. Color shows the number of districts per hexagon, on a log scale.\n\n\n\n\n\nThree things stand out, none of which the metrics table shows:\n\nA horizontal line at 5.0 (a diagonal stripe in the residual plots). 4.6% of districts have a value of exactly 5.0, because values were capped when the data was collected. The true values are higher, so the errors there are partly an artifact of the data, not of the model.\nThe GLM’s residuals trend downward. It under-predicts cheap districts and over-predicts expensive ones: the relationship isn’t linear, and a linear model can’t bend to follow it. It also predicts outside the possible range for 1.3% of districts (above the cap or below zero).\nThe GBM’s residuals are tighter and centered on zero across the whole range, consistent with its lower RMSE, but they widen for expensive districts. The errors are larger where values are larger, which is common for prices and amounts.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html#where-these-metrics-break-pure-premium",
-    "href": "docs/continuous/error-metrics.html#where-these-metrics-break-pure-premium",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "Where these metrics break: pure premium",
-    "text": "Where these metrics break: pure premium\nNow apply the same metrics to pure premium, weighted by exposure. We add one more ‘model’: predicting 0 for every policy.\n\np = pure_premium_predictions()\npreds = {m: p[m] for m in (\"Null\", \"GLM\", \"GBM\")} | {\"Always 0\": np.zeros(len(p))}\npd.DataFrame({m: regression_metrics(p[\"y\"], v, p[\"w\"]) for m, v in preds.items()}).round(4)\n\n\n\nTable 2: Exposure-weighted error metrics for pure premium (EUR per policy-year).\n\n\n\n\n\n\n\n\n\n\nNull\nGLM\nGBM\nAlways 0\n\n\n\n\nbias\n-1.0014\n-1.1435\n-3.6890\n-146.3359\n\n\nMAE\n278.0859\n272.7674\n270.9639\n146.3359\n\n\nRMSE\n4044.5788\n4043.7468\n4043.5154\n4047.2251\n\n\nR²\n-0.0000\n0.0004\n0.0005\n-0.0013\n\n\n\n\n\n\n\n\n\n\nThe results are strange:\n\n‘Always 0’ has the best MAE (146 against 271 for the GBM). Most policies have no claim, so the median pure premium is 0, and MAE rewards the median. A pricing model that charges nothing would win on MAE.\nRMSE is nearly identical for all models (about 4,044). It’s dominated by a few huge claims spread over short exposures, which no model can predict.\nR² is about 0.0005 for both models: practically zero, even though, as the next pages show, both models clearly separate low and high risks.\n\nThe problem isn’t the models. These metrics assume errors of similar size everywhere, and for insurance targets that assumption fails badly: most outcomes are exactly zero, the rest vary enormously, and the variance grows with the expected value. Such targets need a loss that matches their distribution: the deviance.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
-    ]
-  },
-  {
-    "objectID": "docs/continuous/error-metrics.html#takeaways",
-    "href": "docs/continuous/error-metrics.html#takeaways",
-    "title": "Error metrics: bias, MAE, RMSE and R²",
-    "section": "Takeaways",
-    "text": "Takeaways\n\nBias checks systematic over- or under-prediction; MAE and RMSE give the typical error size in the target’s unit; R² compares with the Null model.\nChoosing a metric chooses what the model should predict: RMSE rewards the mean, MAE the median.\nPlot the residuals. Capped data, non-linear effects and growing error variance stay invisible in summary metrics.\nFor zero-heavy, skewed targets such as pure premium, MAE, RMSE and R² are misleading. Use deviance and ranking-based measures instead.",
-    "crumbs": [
-      "Continuous outcomes",
-      "Error metrics: bias, MAE, RMSE and R²"
     ]
   }
 ]
