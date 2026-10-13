@@ -484,3 +484,94 @@ def diebold_mariano(loss_a, loss_b, weight=None) -> pd.Series:
     mean = np.average(d, weights=w)
     se = np.sqrt(np.sum(w**2 * (d - mean) ** 2)) / w.sum()
     return pd.Series({"difference": mean, **_z_test(mean, se)})
+
+
+# --- Drift -------------------------------------------------------------------
+
+
+def psi_table(reference, current, n_bins: int = 10, eps: float = 1e-4) -> pd.DataFrame:
+    """Share of reference and current data per bin, and each bin's contribution to the PSI.
+
+    Numeric features are cut at the reference deciles (fewer bins when values
+    repeat); categorical features use one bin per category. Empty bins get the
+    share ``eps`` so the logarithm stays finite;
+    bins empty in both samples are dropped.
+    """
+    reference, current = pd.Series(reference), pd.Series(current)
+    if isinstance(reference.dtype, pd.CategoricalDtype) or reference.dtype == object:
+        ref_bins, cur_bins = reference.astype(str), current.astype(str)
+    else:
+        inner = np.unique(np.quantile(reference, np.linspace(0, 1, n_bins + 1)[1:-1]))
+        labels = [f"< {inner[0]:g}"] + [f"{lo:g} – {hi:g}" for lo, hi in zip(inner[:-1], inner[1:])] + [f"≥ {inner[-1]:g}"]
+        to_label = lambda x: pd.Categorical.from_codes(np.searchsorted(inner, x, side="right"), labels)
+        ref_bins, cur_bins = to_label(reference), to_label(current)
+    t = pd.DataFrame({
+        "reference": pd.Series(ref_bins).value_counts(normalize=True, sort=False),
+        "current": pd.Series(cur_bins).value_counts(normalize=True, sort=False),
+    }).fillna(0.0)
+    t = t[t.sum(axis=1) > 0].clip(lower=eps)
+    return t.assign(contribution=(t["current"] - t["reference"]) * np.log(t["current"] / t["reference"]))
+
+
+def population_stability_index(reference, current, n_bins: int = 10) -> float:
+    """PSI: Σ (current share − reference share) · ln(current share / reference share) over bins.
+
+    It is the symmetric Kullback–Leibler divergence between the two binned
+    distributions. Common rules of thumb: below 0.1 stable, 0.1–0.25 a
+    moderate shift, above 0.25 a major shift.
+    """
+    return float(psi_table(reference, current, n_bins)["contribution"].sum())
+
+
+def domain_classifier_auc(reference: pd.DataFrame, current: pd.DataFrame, n_splits: int = 3, seed: int = 0) -> float:
+    """Cross-validated AUC of a classifier trained to tell current rows from reference rows.
+
+    About 0.5 when the two samples come from the same distribution; the
+    further above 0.5, the easier the samples are to tell apart. Unlike the
+    PSI it sees all features at once, including changes in how they combine.
+    """
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    from sklearn.model_selection import StratifiedKFold, cross_val_predict
+
+    X = pd.concat([reference, current], ignore_index=True)
+    is_current = np.r_[np.zeros(len(reference)), np.ones(len(current))]
+    clf = HistGradientBoostingClassifier(categorical_features="from_dtype", max_iter=200, random_state=seed)
+    folds = StratifiedKFold(n_splits, shuffle=True, random_state=seed)
+    p = cross_val_predict(clf, X, is_current, cv=folds, method="predict_proba")[:, 1]
+    return auc_rank(is_current, p)
+
+
+def expected_auc(scores, prob) -> float:
+    """AUC expected when each case is positive with probability ``prob`` and ranked by ``scores``.
+
+    The ROC curve is built from *expected* counts: lowering the threshold past
+    a case adds ``prob`` to the expected true positives and ``1 − prob`` to the
+    expected false positives.
+    """
+    scores, prob = np.asarray(scores, dtype=float), np.asarray(prob, dtype=float)
+    grouped = pd.DataFrame({"s": scores, "tp": prob, "fp": 1 - prob}).groupby("s", sort=True).sum()[::-1]
+    tpr = np.r_[0.0, grouped["tp"].cumsum() / grouped["tp"].sum()]
+    fpr = np.r_[0.0, grouped["fp"].cumsum() / grouped["fp"].sum()]
+    return auc_trapezoid(fpr, tpr)
+
+
+def cbpe(y_reference, p_reference, p_current) -> pd.Series:
+    """Confidence-based performance estimation: binary metrics on unlabelled data.
+
+    The predictions are first recalibrated on the labelled reference data
+    (isotonic regression of outcome on prediction). The recalibrated
+    probability of each current case is then taken as its chance of being
+    positive, and every metric is replaced by its expected value. Valid as
+    long as the outcome given the prediction behaves as in the reference data,
+    which covariate shift preserves and concept drift breaks.
+    """
+    iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip").fit(p_reference, y_reference)
+    p = np.asarray(p_current, dtype=float)
+    q = np.clip(iso.predict(p), EPS, 1 - EPS)  # estimated chance of a claim
+    pc = np.clip(p, EPS, 1 - EPS)
+    return pd.Series({
+        "positive rate": q.mean(),
+        "AUC": expected_auc(p, q),
+        "log loss": float(-np.mean(q * np.log(pc) + (1 - q) * np.log(1 - pc))),
+        "Brier": float(np.mean(q * (1 - p) ** 2 + (1 - q) * p**2)),
+    })

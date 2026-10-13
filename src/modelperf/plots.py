@@ -437,3 +437,91 @@ def plot_intervals(table, ax=None, xlabel: str = "Difference", title: str | None
     if title:
         ax.set_title(title)
     return ax
+
+
+# --- Drift -------------------------------------------------------------------
+
+PSI_THRESHOLDS = {"moderate shift": 0.1, "major shift": 0.25}
+
+
+def plot_psi(psi, ax=None, title: str | None = None, xmax: float | None = None):
+    """PSI per feature as horizontal bars, largest on top, with the rule-of-thumb thresholds."""
+    ax = _ax(ax)
+    psi = psi.sort_values()
+    rows = np.arange(len(psi))
+    ax.barh(rows, psi, height=0.6, color=INK_SECONDARY)
+    ax.set_yticks(rows, psi.index)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(axis="y", visible=False)
+    xmax = xmax or max(0.3, 1.1 * psi.max())
+    for label, x in PSI_THRESHOLDS.items():
+        ax.axvline(x, color=MUTED, linewidth=1, linestyle="--")
+        ax.annotate(label, (x, 0.02), xycoords=("data", "axes fraction"), xytext=(3, 0),
+                    textcoords="offset points", rotation=90, va="bottom", fontsize=8, color=MUTED)
+    ax.set_xlim(0, xmax)
+    ax.set_xlabel("PSI")
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+def plot_psi_bins(table, ax=None, title: str | None = None, xlabel: str = "Bin"):
+    """Share of reference and current data per bin, from a ``psi_table``."""
+    ax = _ax(ax)
+    x = np.arange(len(table))
+    ax.bar(x - 0.2, table["reference"], width=0.4, color=MUTED, label="Reference")
+    ax.bar(x + 0.2, table["current"], width=0.4, color=METRIC_COLORS[1], label="Current")
+    ax.set_xticks(x, table.index, rotation=45, ha="right")
+    ax.grid(axis="x", visible=False)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Share of policies")
+    ax.legend(loc="upper right")
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+def plot_over_time(table, ax=None, ylabel: str = "", hlines: dict | None = None,
+                   title: str | None = None, ylim=None):
+    """One line per column of ``table`` (index: month), labelled at its last point."""
+    ax = _ax(ax)
+    for label, y in (hlines or {}).items():
+        ax.axhline(y, color=MUTED, linewidth=1, linestyle="--")
+        ax.annotate(label, (0, y), xycoords=("axes fraction", "data"), xytext=(3, 3),
+                    textcoords="offset points", fontsize=8, color=MUTED)
+    x = table.index.to_numpy()
+    for (name, values), color in zip(table.items(), METRIC_COLORS):
+        ax.plot(x, values, color=color, marker="o", markersize=5, markeredgecolor=SURFACE,
+                markeredgewidth=1, label=name)
+    ax.set_xticks(x)
+    ax.set_xlabel("Month")
+    ax.set_ylabel(ylabel)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.legend(loc="upper left")
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+def plot_estimated_vs_realized(table, metric: str, ax=None, reference: float | None = None,
+                               title: str | None = None, color: str = MODEL_COLORS["GBM"]):
+    """Monitoring chart: a metric estimated without labels against its realized value per month.
+
+    ``table`` (index: month) has the columns ``estimated``, ``realized``,
+    ``lower`` and ``upper`` (the realized value's 95% interval).
+    """
+    ax = _ax(ax)
+    x = table.index.to_numpy()
+    if reference is not None:
+        ax.axhline(reference, color=MUTED, linewidth=1, linestyle="--", label="Reference")
+    ax.errorbar(x, table["realized"], yerr=[table["realized"] - table["lower"], table["upper"] - table["realized"]],
+                color=INK_SECONDARY, linestyle="none", elinewidth=1, capsize=0, marker="o", markersize=5,
+                markeredgecolor=SURFACE, markeredgewidth=1, label="Realized (95% interval)")
+    ax.plot(x, table["estimated"], color=color, label="Estimated (CBPE)")
+    ax.set_xticks(x[::2])
+    ax.set_xlabel("Month")
+    ax.set_ylabel(metric)
+    if title:
+        ax.set_title(title)
+    return ax
