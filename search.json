@@ -264,6 +264,145 @@
     ]
   },
   {
+    "objectID": "docs/monitoring/drift.html",
+    "href": "docs/monitoring/drift.html",
+    "title": "Drift",
+    "section": "",
+    "text": "Question answered: has the model’s performance changed since it was validated, and can we tell before the outcomes come in?\nEvery earlier page measured performance on a test set with known outcomes. In production the outcomes arrive late. A claim may be reported weeks after the accident and settled years later, so a pricing model’s AUC or deviance for this month’s policies can only be computed long after the policies were written. Meanwhile the portfolio changes: new distribution channels, new vehicles, new regulation. Drift monitoring watches what is available right away (the features and the model’s predictions) for signs that performance may have changed.\nThis page covers three tools, from simple to more ambitious:\nIt also shows the kind of drift that none of them can see.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#two-kinds-of-drift",
+    "href": "docs/monitoring/drift.html#two-kinds-of-drift",
+    "title": "Drift",
+    "section": "Two kinds of drift",
+    "text": "Two kinds of drift\nA model learns the joint distribution of features \\(x\\) and outcome \\(y\\), which splits into two parts:\n\\[\nP(x, y) = P(y \\mid x) \\, P(x).\n\\]\n\nCovariate shift: \\(P(x)\\) changes, \\(P(y \\mid x)\\) doesn’t. The portfolio contains different policies, but a given policy is as risky as before. A well-specified model keeps predicting correctly for each policy, though portfolio-level metrics can still move, because AUC and log loss depend on the mix of policies.\nConcept drift: \\(P(y \\mid x)\\) changes. The same policy is now more (or less) risky than the model believes. The model is wrong, and nothing in \\(x\\) shows it.\n\nFeature-based monitoring can only detect the first kind. Whether a detected shift matters is a separate question.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#the-setup-a-year-of-simulated-production",
+    "href": "docs/monitoring/drift.html#the-setup-a-year-of-simulated-production",
+    "title": "Drift",
+    "section": "The setup: a year of simulated production",
+    "text": "The setup: a year of simulated production\nThe test set is split in half. One half is the reference: labelled data the model was validated on, as on every earlier page. The other half is a pool from which we draw 12 monthly production batches of 20,000 policies each. Drift grows linearly: month 1 has none, month 12 the full effect. We monitor the GBM for HasClaim. The split into halves is stratified by claim, fuel type, area and age band, so that the segments the scenarios change start out alike in both halves: differences between reference and production then come from the simulated drift, not from the luck of the split.\n\n\n\nTable 1: The three simulated drift scenarios.\n\n\n\n\n\n\n\n\n\n\nScenario\nWhat changes by month 12\nA plausible cause\n\n\n\n\nCovariate shift\nYoung drivers are sampled more often: the average driver age falls from 45 to 35. Risk given the features is unchanged.\nA new online channel attracts young drivers\n\n\nConcept drift\nThe features are unchanged, but the claim rate in the rural areas A, B, C (55% of policies) rises by 50%.\nMore traffic on rural roads, or a run of storms\n\n\nBenign drift\nThe share of diesel cars falls from 49% to 15%. The models barely use fuel type, and diesel and petrol cars have similar claim rates.\nDiesel bans in city centres\n\n\n\n\n\n\nA monthly monitoring job computes the following for each batch. The first three blocks need only the features; the last needs the outcomes, which in reality would arrive months later.\n\ndef monitor(batch: pd.DataFrame) -&gt; dict:\n    X, y = batch[BINARY_FEATURES], batch[\"HasClaim\"].to_numpy()\n    p = gbm.predict_proba(X)[:, 1]\n    # Input drift: each feature, and all features together\n    row = {f: population_stability_index(reference[f], X[f]) for f in BINARY_FEATURES}\n    row[\"domain AUC\"] = domain_classifier_auc(reference[BINARY_FEATURES], X)\n    # Prediction drift\n    row[\"score PSI\"] = population_stability_index(p_ref, p)\n    # Estimated performance (no outcomes needed)\n    row.update({f\"est. {k}\": v for k, v in cbpe(y_ref, p_ref, p).items()})\n    # Realized performance with standard errors (once the outcomes are in)\n    loss = -(y * np.log(p) + (1 - y) * np.log(1 - p))\n    auc_boot = paired_bootstrap(auc_rank, y, {\"GBM\": p}, n_boot=200)[\"GBM\"]\n    row.update({\n        \"positive rate\": y.mean(), \"se positive rate\": np.sqrt(y.mean() * (1 - y.mean()) / y.size),\n        \"AUC\": auc_rank(y, p), \"se AUC\": auc_boot.std(),\n        \"log loss\": loss.mean(), \"se log loss\": loss.std() / np.sqrt(y.size),\n    })\n    return row\n\n\nresults = {\n    s: pd.DataFrame([monitor(b) for _, b in months[s].groupby(\"month\")], index=range(1, N_MONTHS + 1))\n    for s in SCENARIOS\n}",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#population-stability-index",
+    "href": "docs/monitoring/drift.html#population-stability-index",
+    "title": "Drift",
+    "section": "Population stability index",
+    "text": "Population stability index\nThe PSI compares a feature’s distribution in the current data with the reference. Cut the feature into bins (deciles of the reference data for a numeric feature, one bin per category otherwise), compute the share of policies in each bin in both samples, \\(r_k\\) and \\(c_k\\), and add up\n\\[\n\\text{PSI} = \\sum_k (c_k - r_k) \\ln \\frac{c_k}{r_k}.\n\\]\nEach term is positive whenever \\(c_k \\neq r_k\\), so shifts in different directions don’t cancel. The PSI is the Kullback–Leibler divergence taken in both directions, \\(\\text{KL}(c \\,\\|\\, r) + \\text{KL}(r \\,\\|\\, c)\\). Credit-risk practice gave it widely used rules of thumb: below 0.1 the distribution is stable, 0.1–0.25 is a moderate shift, above 0.25 a major one.\nHere are driver ages in the last month of the covariate-shift scenario:\n\n\nCode\nt_age = psi_table(reference[\"DrivAge\"], cov[\"DrivAge\"])\nfig, ax = plt.subplots(figsize=(7, 3.6))\nplot_psi_bins(t_age, ax=ax, xlabel=\"Driver age (reference deciles)\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 1: Driver age in the reference data and in the last month of the covariate-shift scenario, binned at the reference deciles. Each bin’s contribution to the PSI is in the table below.\n\n\n\n\n\n\n\nCode\nt_age.assign(**{\"current − reference\": t_age[\"current\"] - t_age[\"reference\"]})[\n    [\"reference\", \"current\", \"current − reference\", \"contribution\"]\n].T.round(3)\n\n\n\n\nTable 2: PSI of driver age, bin by bin.\n\n\n\n\n\n\n\n\n\n\n&lt; 28\n28 – 32\n32 – 36\n36 – 40\n40 – 44\n44 – 48\n48 – 53\n53 – 57\n57 – 65\n≥ 65\n\n\n\n\nreference\n0.091\n0.087\n0.100\n0.102\n0.101\n0.098\n0.121\n0.089\n0.104\n0.108\n\n\ncurrent\n0.243\n0.182\n0.159\n0.128\n0.088\n0.071\n0.062\n0.031\n0.025\n0.010\n\n\ncurrent − reference\n0.152\n0.095\n0.059\n0.026\n-0.012\n-0.027\n-0.059\n-0.058\n-0.079\n-0.097\n\n\ncontribution\n0.150\n0.070\n0.027\n0.006\n0.002\n0.008\n0.040\n0.061\n0.111\n0.229\n\n\n\n\n\n\n\n\n\n\nThe youngest bins more than doubled and the oldest shrank, giving a PSI of 0.70, a major shift. Computing the PSI of every feature in the last month of each scenario:\n\n\nCode\nfig, axes = plt.subplots(1, 3, figsize=(11, 3.8), sharey=False)\nxmax = 1.1 * max(results[s].loc[N_MONTHS, BINARY_FEATURES].max() for s in SCENARIOS)\nfor ax, (s, name) in zip(axes, SCENARIOS.items()):\n    plot_psi(results[s].loc[N_MONTHS, BINARY_FEATURES].astype(float), ax=ax, title=name, xmax=xmax)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 2: PSI of each feature in the last month of each scenario. Dashed lines mark the usual thresholds for a moderate (0.1) and a major (0.25) shift.\n\n\n\n\n\n\nCovariate shift: driver age shifts strongly. So does the bonus-malus level (PSI 0.23), because young drivers have not yet earned a bonus: shifting one feature shifts every feature correlated with it.\nConcept drift: every PSI is close to 0. The features really are unchanged, so feature monitoring has nothing to find.\nBenign drift: fuel type crosses the ‘major’ threshold (0.48), although, as the performance estimates below will show, it hardly matters to the model.\n\n\n\n\n\n\n\nNoteWhy not a statistical test?\n\n\n\nThe two-sample Kolmogorov–Smirnov test (numeric features) or the chi-squared test (categories) asks whether two samples come from exactly the same distribution. With thousands of policies per month, it detects shifts far too small to matter.\nIn month 2 of the covariate-shift scenario, driver age has a PSI of only 0.007, yet the KS test gives p &lt; 0.001. Tests answer ‘is there any difference?’; the PSI measures how large the difference is, which is what monitoring needs.\n\n\nPSI has limits:\n\nIt looks at one feature at a time. A change in how features combine (young drivers suddenly owning powerful cars) can leave every marginal distribution intact.\nBinning matters. Deciles of the reference data are the usual choice. Features with few distinct values, such as the bonus-malus level (more than half the policies sit at 50), get fewer bins.\nIts thresholds are conventions, not statistical results. With small batches, sampling noise alone can push the PSI past 0.1.\n\nApplied to the model’s predictions instead of a feature, the PSI measures prediction drift. It has the advantage of summarizing all features in the units that matter to the model; we return to it below.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#domain-classifier",
+    "href": "docs/monitoring/drift.html#domain-classifier",
+    "title": "Drift",
+    "section": "Domain classifier",
+    "text": "Domain classifier\nTo look at all features together, train a classifier to tell the two samples apart. Label reference policies 0 and current policies 1, fit a model to predict the label from the features, and measure its cross-validated AUC:\n\nAUC ≈ 0.5: the classifier can’t tell the samples apart; no detectable drift.\nAUC well above 0.5: the samples differ, in a way the classifier has learned. Its feature importances show which features drive the difference.\n\nAny classifier works; we use a gradient boosting machine, so interactions between features are covered too.\n\n\nCode\nfig, axes = plt.subplots(1, 2, figsize=(10, 3.8))\nmax_psi = pd.DataFrame({n: results[s][BINARY_FEATURES].max(axis=1) for s, n in SCENARIOS.items()})\nplot_over_time(max_psi, ax=axes[0], ylabel=\"Largest feature PSI\", hlines={\"major shift\": 0.25})\naxes[0].set_title(\"Largest feature PSI\")\ndomain = pd.DataFrame({n: results[s][\"domain AUC\"] for s, n in SCENARIOS.items()})\nplot_over_time(domain, ax=axes[1], ylabel=\"Domain classifier AUC\", hlines={\"no drift\": 0.5})\naxes[1].set_title(\"Domain classifier\")\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 3: Input drift over the year. Left: the largest feature PSI each month. Right: cross-validated AUC of the domain classifier (0.5: indistinguishable from the reference).\n\n\n\n\n\nBoth detectors tell the same story. The covariate and benign shifts grow steadily, and the domain classifier reaches an AUC of 0.72 and 0.65 by the last month. The concept drift stays invisible: the domain classifier hovers around 0.50, as it should when the two samples come from the same distribution.\nThe domain classifier’s AUC is a better single number than a list of PSIs: one value per month, covering every feature and interaction. But like the PSI it answers whether the inputs changed, not whether the model got worse. The benign drift raises both alarms without affecting the model at all.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#estimating-performance-without-outcomes",
+    "href": "docs/monitoring/drift.html#estimating-performance-without-outcomes",
+    "title": "Drift",
+    "section": "Estimating performance without outcomes",
+    "text": "Estimating performance without outcomes\nConfidence-based performance estimation (CBPE) goes one step further: it estimates the model’s metrics directly. The idea is to trust the model’s own probabilities. If a policy has a predicted claim probability of 4%, then on average it contributes 0.04 of a claim and 0.96 of a non-claim. Adding these expected counts over the batch gives an expected confusion matrix at every threshold, and from it an expected ROC curve and an expected AUC. Other metrics follow the same way. For log loss, with \\(\\hat q_i\\) the probability taken as the truth,\n\\[\n\\widehat{\\text{log loss}} = -\\frac{1}{n} \\sum_i \\left[ \\hat q_i \\ln p_i\n+ (1 - \\hat q_i) \\ln (1 - p_i) \\right],\n\\]\nand the expected claim rate is simply the average of \\(\\hat q_i\\).\nThis only works if the probabilities are calibrated, so CBPE first recalibrates them on the labelled reference data: \\(\\hat q_i\\) is the observed claim rate among reference policies with a prediction like \\(p_i\\) (isotonic regression, as for the CORP reliability curve on the calibration page). Then:\n\nunder covariate shift, \\(P(y \\mid x)\\) is unchanged, so calibration carries over to the new portfolio, and CBPE follows the real performance, even when it changes;\nunder concept drift, the recalibration map is out of date, and CBPE keeps reporting the old performance.\n\nHere is the estimate (line) against the realized value (points, with 95% intervals) for each scenario and metric. In reality the points would only appear months later.\n\n\nCode\nmetrics = {\"positive rate\": \"claim rate\", \"AUC\": \"AUC\", \"log loss\": \"log loss\"}\nref_values = {\"positive rate\": y_ref.mean(), \"AUC\": auc_rank(y_ref, p_ref), \"log loss\": log_loss(y_ref, p_ref)}\nfig, axes = plt.subplots(3, 3, figsize=(11, 8.5), sharex=True, sharey=\"col\")\nfor i, (s, name) in enumerate(SCENARIOS.items()):\n    r = results[s]\n    for j, (m, label) in enumerate(metrics.items()):\n        t = pd.DataFrame({\n            \"estimated\": r[f\"est. {m}\"], \"realized\": r[m],\n            \"lower\": r[m] - 1.96 * r[f\"se {m}\"], \"upper\": r[m] + 1.96 * r[f\"se {m}\"],\n        })\n        ax = axes[i, j]\n        plot_estimated_vs_realized(t, label, ax=ax, reference=ref_values[m])\n        ax.set_title(f\"{name}: {label}\")\n        ax.set_ylabel(\"\")\n        if i &lt; 2:\n            ax.set_xlabel(\"\")\naxes[0, 0].legend(loc=\"upper left\", fontsize=8)\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 4: Estimated (CBPE, no outcomes) against realized performance of the GBM, month by month. Rows: scenarios. Columns: claim rate, AUC, log loss. The dashed line is the value on the reference data.\n\n\n\n\n\nReading the rows:\n\nCovariate shift: the estimates move with the portfolio. Between the first and last three months, CBPE expects the claim rate to rise by 5% (young drivers claim more) and the AUC to rise by +0.008: a portfolio with a wider range of risks is easier to rank. The realized AUC follows (+0.013). A large drift in the inputs, and the model copes, even slightly improves. This is the case CBPE is built for.\nConcept drift: the estimates are flat, because nothing the model sees has changed, but the realized claim rate climbs: in the last three months it is 20% above the estimate, and the realized log loss rises with it. The realized AUC falls by 0.029: the rural policies, which the model rates as low risk, now have more claims, so its ranking is worse too. Every label-free method misses this scenario.\nBenign drift: estimated and realized metrics stay close to the reference throughout. The fuel-type shift that crossed the PSI’s ‘major’ threshold is irrelevant to performance.\n\nIn the covariate-shift row, the realized claim rate does not rise as estimated. That is the luck of a small group, not a flaw in CBPE. The batches draw their young drivers from the same 4,941 drivers aged 25 or under in the pool, and these happen to have 12% fewer claims than the model expects (A/E 0.88, standard error 0.05). On the training data the model is well calibrated for this age group (A/E 1.02). Because the scenario oversamples the same young drivers month after month, their luck repeats every month instead of averaging out.\nMore generally, the realized points scatter around the estimates, sometimes by more than one might expect. With 20,000 policies and about 736 claims per month, the realized AUC of a single month has a standard error of about 0.009. Realized metrics are themselves estimates: judge each against its interval, as on the model comparison page, rather than reacting to every dip.\n\n\n\n\n\n\nNoteCBPE’s assumptions\n\n\n\nCBPE needs calibrated probabilities, which the recalibration on reference data provides, and no concept drift, which it cannot check. It also assumes the calibration learned on the reference data holds for every kind of policy in the new portfolio: if the model is well calibrated overall but miscalibrated for young drivers, a shift towards young drivers biases the estimate. Treat CBPE as an early warning, not as a substitute for the realized metrics once outcomes arrive.\nFor continuous targets the analogous method is direct loss estimation (DLE): fit a second model on the reference data that predicts each observation’s loss (squared error, deviance) from its features and prediction, and average its predictions over the new batch. For pure premium, where a few large claims dominate every loss, that second model has very little signal to learn from, so we don’t demonstrate it here.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#catching-concept-drift",
+    "href": "docs/monitoring/drift.html#catching-concept-drift",
+    "title": "Drift",
+    "section": "Catching concept drift",
+    "text": "Catching concept drift\nConcept drift is only visible in the outcomes. The tools are those of the calibration page, applied as soon as outcomes arrive: compare actual with expected claims (A/E), overall and by segment. Once the outcomes for the last month of the concept-drift scenario are in, splitting A/E by area points straight at the cause:\n\n\nCode\np_con = gbm.predict_proba(con[BINARY_FEATURES])[:, 1]\nareas = sorted(con[\"Area\"].unique())\nrows = []\nfor a in areas:\n    s = (con[\"Area\"] == a).to_numpy()\n    y_a = con.loc[s, \"HasClaim\"].to_numpy()\n    se = np.sqrt(y_a.mean() * (1 - y_a.mean()) / s.sum())\n    rows.append({\"actual\": y_a.mean(), \"lower\": y_a.mean() - 1.96 * se, \"upper\": y_a.mean() + 1.96 * se,\n                 \"GBM\": p_con[s].mean()})\nae = pd.DataFrame(rows, index=range(1, len(areas) + 1))\nfig, ax = plt.subplots(figsize=(6.5, 3.8))\nplot_segments(ae, [\"GBM\"], ax=ax, ratio=True, xlabel=\"Area (A: most rural, F: most urban)\", ylabel=\"Actual ÷ expected claims\")\nax.set_xticks(ae.index, areas)\nax.get_legend().remove()\nfig.tight_layout()\n\n\n\n\n\n\n\n\nFigure 5: Actual ÷ expected claims per area in the last month of the concept-drift scenario, with 95% intervals. Expected claims are the GBM’s predictions; 1 means the model is right on average.\n\n\n\n\n\nThe rural areas A, B, C have clearly more claims than the model expects. Areas D and E have about as many as expected; area F, the smallest, is too noisy to tell either way. Two practical consequences:\n\nOutcomes arrive gradually. Claim counts are known within weeks or months, long before claim costs are settled. Monitoring claim frequency (as here) gives an early read; cost-based metrics such as deviance or Gini for pure premium follow much later.\nSegment-level A/E needs volume. A month of one segment is noisy; pooling several months, or using a cumulative A/E chart, makes slow drift visible sooner.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#what-each-method-can-see",
+    "href": "docs/monitoring/drift.html#what-each-method-can-see",
+    "title": "Drift",
+    "section": "What each method can see",
+    "text": "What each method can see\n\n\nCode\ndef summary(r):\n    feats = r.loc[N_MONTHS, BINARY_FEATURES].astype(float)\n    return {\n        \"largest feature PSI\": f\"{feats.max():.2f} ({feats.idxmax()})\",\n        \"score PSI\": f\"{r.loc[N_MONTHS, 'score PSI']:.3f}\",\n        \"domain classifier AUC\": f\"{r.loc[N_MONTHS, 'domain AUC']:.2f}\",\n        \"est. claim rate change\": f\"{rel(r, 'est. positive rate'):+.0%}\",\n        \"realized claim rate change\": f\"{rel(r, 'positive rate'):+.0%}\",\n        \"est. AUC change\": f\"{change(r, 'est. AUC'):+.3f}\",\n        \"realized AUC change\": f\"{change(r, 'AUC'):+.3f}\",\n    }\n\npd.DataFrame({name: summary(results[s]) for s, name in SCENARIOS.items()})\n\n\n\n\nTable 3: Last month of each scenario: what the monitoring methods report, and what really happened. Changes are the last three months against the first three.\n\n\n\n\n\n\n\n\n\n\nCovariate shift\nConcept drift\nBenign drift\n\n\n\n\nlargest feature PSI\n0.70 (DrivAge)\n0.00 (Region)\n0.48 (VehGas)\n\n\nscore PSI\n0.013\n0.001\n0.004\n\n\ndomain classifier AUC\n0.72\n0.50\n0.65\n\n\nest. claim rate change\n+5%\n+1%\n-1%\n\n\nrealized claim rate change\n-1%\n+18%\n+0%\n\n\nest. AUC change\n+0.008\n+0.002\n-0.003\n\n\nrealized AUC change\n+0.013\n-0.029\n+0.000\n\n\n\n\n\n\n\n\n\n\nThe score PSI deserves a second look. It never exceeded 0.013 in every scenario, far below any threshold, even under the covariate shift that moved driver age by a PSI of 0.70. The model’s predictions depend on many features, and a shift in one of them moves the score distribution only a little. Prediction drift is a sensitive alarm only when the shift touches the features the model relies on most.\n\n\n\nTable 4: Monitoring methods and what they can see.\n\n\n\n\n\n\n\n\n\n\n\n\nMethod\nNeeds outcomes?\nDetects covariate shift\nDetects concept drift\nSays whether performance changed\n\n\n\n\nPSI per feature\nno\nyes, one feature at a time\nno\nno\n\n\nDomain classifier\nno\nyes, including interactions\nno\nno\n\n\nPrediction drift (score PSI)\nno\nwhen it affects the score\nno\nno\n\n\nCBPE / DLE\nno\nyes\nno\nyes, under covariate shift\n\n\nRealized metrics, A/E by segment\nyes\nyes\nyes\nyes, after a delay",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "docs/monitoring/drift.html#takeaways",
+    "href": "docs/monitoring/drift.html#takeaways",
+    "title": "Drift",
+    "section": "Takeaways",
+    "text": "Takeaways\n\nOutcomes arrive late, so production monitoring starts with what is available now: features and predictions.\nCovariate shift (new kinds of policies) shows up in the features. Concept drift (the same policies behaving differently) doesn’t, and every label-free method misses it.\nThe PSI measures how much one feature’s distribution moved; the domain classifier checks all features and their interactions at once. Both detect change, not harm: a large shift can leave the model unaffected (benign drift), or even slightly improve its AUC (covariate shift).\nCBPE turns the model’s calibrated probabilities into estimated metrics. It follows real performance under covariate shift and is blind to concept drift.\nThe only defence against concept drift is to compare predictions with outcomes as they arrive: A/E overall and by segment, judged against sampling noise.",
+    "crumbs": [
+      "Monitoring",
+      "Drift"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Measuring model performance",
+    "section": "",
+    "text": "This project documents how to measure the performance of predictive models, working through every method on real models fitted to real data. Each page answers one question about a model, shows the method on our examples, and explains when it misleads.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#the-examples",
+    "href": "index.html#the-examples",
+    "title": "Measuring model performance",
+    "section": "The examples",
+    "text": "The examples\nMost pages use the French motor insurance dataset (freMTPL2, about 680,000 policies) with two targets:\n\n\n\n\n\n\n\n\nTarget\nType\nQuestion\n\n\n\n\nHasClaim\nbinary (0/1)\nWill this policy have a claim?\n\n\nPurePremium\ncontinuous, weighted by exposure\nWhat claim cost per year should we expect?\n\n\n\nFor each target we compare a GLM (the traditional baseline) with a gradient boosting machine (GBM), plus a Null model that predicts the average for everyone. A few pages also use California Housing, a continuous target with a strong signal, where standard error metrics behave as textbooks describe. See Data and models.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#how-the-pages-are-organized",
+    "href": "index.html#how-the-pages-are-organized",
+    "title": "Measuring model performance",
+    "section": "How the pages are organized",
+    "text": "How the pages are organized\nMetrics are grouped by the question they answer rather than listed by name:\n\nClassification at a threshold: is the yes/no decision right? (confusion matrix)\nDiscrimination: does the model rank cases correctly? (ROC and AUC, precision–recall)\nCalibration: do predicted probabilities match observed frequencies? (calibration and scoring rules)\nError size: how far off are the predictions? (error metrics, deviance)\nRanking and segmentation: does the model separate low risks from high risks? (lift charts and Lorenz curves)\nModel comparison: is one model really better, or is the gap noise? (comparing models)\nDrift: has performance changed since validation, before the outcomes are in? (drift)",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
+    "objectID": "index.html#working-with-the-code",
+    "href": "index.html#working-with-the-code",
+    "title": "Measuring model performance",
+    "section": "Working with the code",
+    "text": "Working with the code\nAll metric and plotting code lives in the modelperf package (src/modelperf/) and is tested against scikit-learn. Pages only call it, so explanations and implementations stay in sync.\nuv sync                  # install the environment\nuv run pytest            # check the metrics\nuv run quarto preview    # build and serve the site locally\nThe first page you render downloads the data and fits all models (about a minute); fitted models are cached in artifacts/.",
+    "crumbs": [
+      "Measuring model performance"
+    ]
+  },
+  {
     "objectID": "docs/comparison/model-comparison.html",
     "href": "docs/comparison/model-comparison.html",
     "title": "Comparing models",
@@ -349,46 +488,6 @@
     "crumbs": [
       "Comparing models",
       "Comparing models"
-    ]
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Measuring model performance",
-    "section": "",
-    "text": "This project documents how to measure the performance of predictive models, working through every method on real models fitted to real data. Each page answers one question about a model, shows the method on our examples, and explains when it misleads.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#the-examples",
-    "href": "index.html#the-examples",
-    "title": "Measuring model performance",
-    "section": "The examples",
-    "text": "The examples\nMost pages use the French motor insurance dataset (freMTPL2, about 680,000 policies) with two targets:\n\n\n\n\n\n\n\n\nTarget\nType\nQuestion\n\n\n\n\nHasClaim\nbinary (0/1)\nWill this policy have a claim?\n\n\nPurePremium\ncontinuous, weighted by exposure\nWhat claim cost per year should we expect?\n\n\n\nFor each target we compare a GLM (the traditional baseline) with a gradient boosting machine (GBM), plus a Null model that predicts the average for everyone. A few pages also use California Housing, a continuous target with a strong signal, where standard error metrics behave as textbooks describe. See Data and models.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#how-the-pages-are-organized",
-    "href": "index.html#how-the-pages-are-organized",
-    "title": "Measuring model performance",
-    "section": "How the pages are organized",
-    "text": "How the pages are organized\nMetrics are grouped by the question they answer rather than listed by name:\n\nClassification at a threshold: is the yes/no decision right? (confusion matrix)\nDiscrimination: does the model rank cases correctly? (ROC and AUC, precision–recall)\nCalibration: do predicted probabilities match observed frequencies? (calibration and scoring rules)\nError size: how far off are the predictions? (error metrics, deviance)\nRanking and segmentation: does the model separate low risks from high risks? (lift charts and Lorenz curves)\nModel comparison: is one model really better, or is the gap noise? (comparing models)\nDrift: coming next.",
-    "crumbs": [
-      "Measuring model performance"
-    ]
-  },
-  {
-    "objectID": "index.html#working-with-the-code",
-    "href": "index.html#working-with-the-code",
-    "title": "Measuring model performance",
-    "section": "Working with the code",
-    "text": "Working with the code\nAll metric and plotting code lives in the modelperf package (src/modelperf/) and is tested against scikit-learn. Pages only call it, so explanations and implementations stay in sync.\nuv sync                  # install the environment\nuv run pytest            # check the metrics\nuv run quarto preview    # build and serve the site locally\nThe first page you render downloads the data and fits all models (about a minute); fitted models are cached in artifacts/.",
-    "crumbs": [
-      "Measuring model performance"
     ]
   },
   {
