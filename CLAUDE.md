@@ -27,6 +27,10 @@ uv run quarto render     # full render (re-executes only changed pages)
   `index.qmd`.
 - Examples use freMTPL2 (`HasClaim`, `PurePremium`) with Null / GLM / GBM
   models; California Housing only where clean error-metric behaviour is needed.
+  The drift page uses simulated production batches from `src/modelperf/drift.py`
+  (drawn from the test set; the models are never refitted).
+- Numbers quoted in page text come from inline `{python}` expressions, never
+  typed by hand; after a render, check that the prose still matches them.
 
 ## Publishing
 
