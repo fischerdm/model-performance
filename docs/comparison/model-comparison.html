@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Is one model really better, or did the test set favour it by chance? Paired bootstrap, DeLong’s test for AUC and the Diebold–Mariano test for losses.">
+
+<title>Comparing models – Model Performance</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-1bdbca75b362e6c5a8c09207907ff998.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/comparison/model-comparison.html">Comparing models</a></li><li class="breadcrumb-item"><a href="../../docs/comparison/model-comparison.html">Comparing models</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../../">Model Performance</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Measuring model performance</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/foundations/data-and-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data and models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Binary outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/confusion-matrix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Confusion matrix and threshold metrics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/roc-auc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC curve and AUC</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/precision-recall.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision–recall curves</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/calibration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Calibration and proper scoring rules</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Continuous outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/error-metrics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Error metrics: bias, MAE, RMSE and R²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/deviance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Deviance and D²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/lift-lorenz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Lift charts and Lorenz curves</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Comparing models</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/comparison/model-comparison.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Comparing models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#compare-the-difference-not-two-intervals" id="toc-compare-the-difference-not-two-intervals" class="nav-link active" data-scroll-target="#compare-the-difference-not-two-intervals">Compare the difference, not two intervals</a></li>
+  <li><a href="#the-paired-bootstrap" id="toc-the-paired-bootstrap" class="nav-link" data-scroll-target="#the-paired-bootstrap">The paired bootstrap</a></li>
+  <li><a href="#delongs-test-for-auc" id="toc-delongs-test-for-auc" class="nav-link" data-scroll-target="#delongs-test-for-auc">DeLong’s test for AUC</a></li>
+  <li><a href="#the-dieboldmariano-test-for-losses" id="toc-the-dieboldmariano-test-for-losses" class="nav-link" data-scroll-target="#the-dieboldmariano-test-for-losses">The Diebold–Mariano test for losses</a></li>
+  <li><a href="#is-the-blends-improvement-real" id="toc-is-the-blends-improvement-real" class="nav-link" data-scroll-target="#is-the-blends-improvement-real">Is the blend’s improvement real?</a>
+  <ul class="collapse">
+  <li><a href="#before-declaring-a-winner" id="toc-before-declaring-a-winner" class="nav-link" data-scroll-target="#before-declaring-a-winner">Before declaring a winner</a></li>
+  </ul></li>
+  <li><a href="#which-test-for-which-metric" id="toc-which-test-for-which-metric" class="nav-link" data-scroll-target="#which-test-for-which-metric">Which test for which metric</a></li>
+  <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/comparison/model-comparison.html">Comparing models</a></li><li class="breadcrumb-item"><a href="../../docs/comparison/model-comparison.html">Comparing models</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Comparing models</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+</div>
+
+<div>
+  <div class="description">
+    Is one model really better, or did the test set favour it by chance? Paired bootstrap, DeLong’s test for AUC and the Diebold–Mariano test for losses.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><strong>Question answered:</strong> is one model really better than another, or did the test set happen to favour it?</p>
+<p>Every metric on the earlier pages was computed on one test set of 169,504 policies. A different sample of policies would have given slightly different values, so each metric is an <em>estimate</em> with sampling uncertainty. When two models are close, the question is whether their gap is larger than that uncertainty. This page covers three ways to answer it:</p>
+<ul>
+<li>the <strong>paired bootstrap</strong>, which works for any metric;</li>
+<li><strong>DeLong’s test</strong>, a fast formula for the difference between two AUCs;</li>
+<li>the <strong>Diebold–Mariano test</strong>, for any metric that is an average of per-observation losses (log loss, Brier score, deviance).</li>
+</ul>
+<p>It ends by settling a question left open on the <a href="../../docs/continuous/lift-lorenz.html">lift chart page</a>: is the GLM–GBM blend’s improvement real?</p>
+<section id="compare-the-difference-not-two-intervals" class="level2">
+<h2 class="anchored" data-anchor-id="compare-the-difference-not-two-intervals">Compare the difference, not two intervals</h2>
+<p>Both models are scored on the <strong>same</strong> policies. That matters: a test set that happens to contain many easy-to-rank policies flatters <em>both</em> models at once. Most of the sampling noise is shared, and it cancels in the difference.</p>
+<p>The tempting shortcut, computing an interval for each model and checking whether they overlap, ignores this. It treats the two estimates as independent and overstates the uncertainty of the difference, often by a large factor. The right approach measures the uncertainty of the <strong>difference itself</strong>, on paired data. All three methods below do that.</p>
+</section>
+<section id="the-paired-bootstrap" class="level2">
+<h2 class="anchored" data-anchor-id="the-paired-bootstrap">The paired bootstrap</h2>
+<p>The bootstrap estimates sampling uncertainty by imitating the sampling:</p>
+<ol type="1">
+<li>draw a <strong>resample</strong> of the test set: as many policies as it has, drawn at random <em>with replacement</em> (some appear twice, others not at all);</li>
+<li>score <strong>both models on the same resample</strong> and record their difference;</li>
+<li>repeat many times (here 1,000).</li>
+</ol>
+<p>The spread of the recorded differences shows how much the difference would vary from one test set to another. Its 2.5% and 97.5% quantiles give a 95% <strong>percentile interval</strong>.</p>
+<p>Here is the AUC of the two <code>HasClaim</code> models from the <a href="../../docs/binary/roc-auc.html">ROC page</a>:</p>
+<div id="fe05722a" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>boot <span class="op">=</span> paired_bootstrap(auc_rank, y, {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)}, n_boot<span class="op">=</span>N_BOOT)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-bootstrap-auc" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.4</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>plot_paired_bootstrap(boot, <span class="st">"GBM"</span>, <span class="st">"GLM"</span>, axes)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-bootstrap-auc" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-bootstrap-auc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="model-comparison_files/figure-html/fig-bootstrap-auc-output-1.png" width="1046" height="473" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bootstrap-auc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Paired bootstrap of the AUC on the test set. Left: GBM against GLM AUC, one point per resample. Right: distribution of the difference GBM − GLM, with its 95% percentile interval shaded.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The left panel shows why pairing matters. From one resample to the next, the AUCs move together (correlation 0.88): a resample that is easy for the GLM is easy for the GBM too. Each AUC on its own has a standard error of about 0.0033, but their difference only 0.0016. Treating the models as independent would give 0.0047, overstating the uncertainty 2.9 times.</p>
+<div class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>{m: {<span class="st">"AUC"</span>: auc[m], <span class="st">"std. error"</span>: se[m], <span class="st">"lower"</span>: boot[m].quantile(<span class="fl">0.025</span>), <span class="st">"upper"</span>: boot[m].quantile(<span class="fl">0.975</span>)}</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>       <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBM − GLM"</span>: boot_auc.rename({<span class="st">"difference"</span>: <span class="st">"AUC"</span>}).drop(<span class="st">"p-value"</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-bootstrap-auc" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-bootstrap-auc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: AUC of each model and of their difference, with bootstrap standard errors and 95% percentile intervals.
+</figcaption>
+<div aria-describedby="tbl-bootstrap-auc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">AUC</th>
+<th data-quarto-table-cell-role="th">std. error</th>
+<th data-quarto-table-cell-role="th">lower</th>
+<th data-quarto-table-cell-role="th">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GLM</th>
+<td>0.6943</td>
+<td>0.0033</td>
+<td>0.6875</td>
+<td>0.7003</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GBM</th>
+<td>0.7127</td>
+<td>0.0033</td>
+<td>0.7058</td>
+<td>0.7191</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GBM − GLM</th>
+<td>0.0184</td>
+<td>0.0016</td>
+<td>0.0153</td>
+<td>0.0215</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The whole interval for GBM − GLM lies above 0: not one of the 1,000 resamples had the GLM ahead. The GBM ranks better, and not by chance.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Why the bootstrap works, and when it doesn’t
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The bootstrap treats the test set as a stand-in for the population and resamples from it. It works for any metric you can compute, however complicated (AUC, Gini, a lift ratio, the precision in the top 5%), which makes it the default tool. It needs:</p>
+<ul>
+<li><strong>Independent observations.</strong> Resampling single policies assumes each is a separate draw. With grouped data (several policies per customer) or time series, resample whole groups or blocks instead.</li>
+<li><strong>Enough resamples.</strong> 1,000 is plenty for a 95% interval. Small p-values need more: with B resamples a p-value can’t go much below 2/B.</li>
+<li><strong>Time.</strong> Every resample recomputes the metric for every model.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="delongs-test-for-auc" class="level2">
+<h2 class="anchored" data-anchor-id="delongs-test-for-auc">DeLong’s test for AUC</h2>
+<p>For AUC there is a formula that gives the same answer without resampling. DeLong, DeLong and Clarke-Pearson (1988) start from the reading of AUC on the <a href="../../docs/binary/roc-auc.html">ROC page</a>: the share of (claim, no-claim) pairs that the model orders correctly. That share is an average over pairs, so it splits into a contribution per policy, its <strong>placement value</strong>:</p>
+<ul>
+<li>for a policy <strong>with</strong> a claim: the share of no-claim policies it outscores;</li>
+<li>for a policy <strong>without</strong> a claim: the share of claim policies that outscore it</li>
+</ul>
+<p>(ties count ½). Both sets of placement values average to the AUC, and their variances give the variance of the AUC. For two models, the same computation on the <strong>per-policy differences</strong> of their placement values gives the variance of the AUC difference, with the pairing built in:</p>
+<p><span class="math display">\[
+\operatorname{Var}(\widehat{\text{AUC}}_A - \widehat{\text{AUC}}_B)
+= \frac{\operatorname{Var}(V^A_{1} - V^B_{1})}{n_1}
++ \frac{\operatorname{Var}(V^A_{0} - V^B_{0})}{n_0},
+\]</span></p>
+<p>where <span class="math inline">\(V_1\)</span> are the placement values of the <span class="math inline">\(n_1\)</span> claim policies and <span class="math inline">\(V_0\)</span> those of the <span class="math inline">\(n_0\)</span> no-claim policies. The test statistic is the difference divided by its standard error, compared with the normal distribution.</p>
+<div class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>delong <span class="op">=</span> delong_test(y, b[<span class="st">"GBM"</span>], b[<span class="st">"GLM"</span>])</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>comparison_table({<span class="st">"DeLong"</span>: delong, <span class="st">"Paired bootstrap"</span>: boot_auc})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-delong" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-delong-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: AUC of GBM − GLM: DeLong’s test and the paired bootstrap.
+</figcaption>
+<div aria-describedby="tbl-delong-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">difference</th>
+<th data-quarto-table-cell-role="th">std. error</th>
+<th data-quarto-table-cell-role="th">95% interval</th>
+<th data-quarto-table-cell-role="th">p-value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">DeLong</th>
+<td>0.01844</td>
+<td>0.001649</td>
+<td>[0.01521, 0.02167]</td>
+<td>&lt; 0.001</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Paired bootstrap</th>
+<td>0.01844</td>
+<td>0.001634</td>
+<td>[0.01533, 0.02152]</td>
+<td>0.002</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The two methods agree closely: DeLong’s standard error is 0.00165, the bootstrap’s 0.00163. DeLong’s p-value can go far below anything 1,000 resamples could show, and it takes a fraction of a second. For AUC alone, DeLong is the standard choice. For other metrics, use the bootstrap.</p>
+</section>
+<section id="the-dieboldmariano-test-for-losses" class="level2">
+<h2 class="anchored" data-anchor-id="the-dieboldmariano-test-for-losses">The Diebold–Mariano test for losses</h2>
+<p>Log loss, the Brier score, squared error and deviance are all <strong>averages of a loss per observation</strong>. Comparing two models on such a metric is comparing two averages over the same observations. Diebold and Mariano (1995) test this through the <strong>loss differential</strong> of each observation,</p>
+<p><span class="math display">\[
+d_i = L(y_i, \hat y^A_i) - L(y_i, \hat y^B_i),
+\]</span></p>
+<p>whose average is the difference in the metric. If the models are equally good, the <span class="math inline">\(d_i\)</span> average to 0 apart from noise. The test divides <span class="math inline">\(\bar d\)</span> by its standard error, <span class="math inline">\(\text{sd}(d) / \sqrt n\)</span>, and compares the result with the normal distribution. With weights (such as exposure) both the average and its standard error are weighted.</p>
+<p>For independent observations this is simply a <strong>paired test</strong> on the losses. The name comes from forecasting, where the observations form a time series: there the standard error must allow for autocorrelation between consecutive <span class="math inline">\(d_i\)</span> (a Newey–West standard error), which is the original test’s real contribution.</p>
+<div class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>p_glm, p_gbm <span class="op">=</span> b[<span class="st">"GLM"</span>].to_numpy(), b[<span class="st">"GBM"</span>].to_numpy()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>log_loss_per_policy <span class="op">=</span> <span class="kw">lambda</span> p: <span class="op">-</span>(y <span class="op">*</span> np.log(p) <span class="op">+</span> (<span class="dv">1</span> <span class="op">-</span> y) <span class="op">*</span> np.log(<span class="dv">1</span> <span class="op">-</span> p))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>comparison_table({</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"log loss"</span>: diebold_mariano(log_loss_per_policy(p_glm), log_loss_per_policy(p_gbm)),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brier score"</span>: diebold_mariano((p_glm <span class="op">-</span> y) <span class="op">**</span> <span class="dv">2</span>, (p_gbm <span class="op">-</span> y) <span class="op">**</span> <span class="dv">2</span>),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-dm-binary" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="7">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-dm-binary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Diebold–Mariano tests for HasClaim: GLM loss − GBM loss (positive means the GBM is better).
+</figcaption>
+<div aria-describedby="tbl-dm-binary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">difference</th>
+<th data-quarto-table-cell-role="th">std. error</th>
+<th data-quarto-table-cell-role="th">95% interval</th>
+<th data-quarto-table-cell-role="th">p-value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">log loss</th>
+<td>0.003199</td>
+<td>0.0002108</td>
+<td>[0.002786, 0.003612]</td>
+<td>&lt; 0.001</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Brier score</th>
+<td>0.0004868</td>
+<td>4.17e-05</td>
+<td>[0.0004051, 0.0005686]</td>
+<td>&lt; 0.001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The GBM’s log loss is 2.2% lower than the GLM’s, a small relative gain but measured very precisely: on a large test set even small differences in an average loss are easy to detect. The probabilities agree with the ranking from the AUC tests. The GBM is better on both.</p>
+<p>Two things the Diebold–Mariano test can’t do:</p>
+<ul>
+<li><strong>AUC and Gini are not averages of per-observation losses.</strong> They depend on pairs or on the ranking of the whole test set, so they have no loss differential. Use DeLong or the bootstrap.</li>
+<li><strong>It compares scores, not truth.</strong> A significant difference in log loss says one model’s probabilities are closer to the outcomes on average. It says nothing about <em>where</em>: for that, look at calibration plots and double lift charts.</li>
+</ul>
+</section>
+<section id="is-the-blends-improvement-real" class="level2">
+<h2 class="anchored" data-anchor-id="is-the-blends-improvement-real">Is the blend’s improvement real?</h2>
+<p>The <a href="../../docs/continuous/lift-lorenz.html">lift chart page</a> found that the GLM and the GBM for pure premium each detect mispricing in the other, and that their geometric mean beats both. But all three Gini indices lay within about 0.015 of each other, on a target where a few large claims dominate everything. Time to test.</p>
+<p>One detail first. On the lift chart page, the blend was rescaled so that its average on the <strong>test set</strong> matched the actual average. That uses the test outcomes, which would flatter the blend’s deviance. Here the scale factor comes from the training set, so nothing about the blend is fitted on the test data. (The Gini doesn’t depend on the scale, so it is unchanged.)</p>
+<div id="02059132" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pp <span class="op">=</span> pure_premium_predictions()</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>yp, w <span class="op">=</span> pp[<span class="st">"y"</span>].to_numpy(), pp[<span class="st">"w"</span>].to_numpy()</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>train, fitted <span class="op">=</span> train_test().train, load_models()[<span class="st">"pure_premium"</span>]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>glm_train, gbm_train <span class="op">=</span> (fitted[m].predict(train[FEATURES]) <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>scale <span class="op">=</span> np.average(train[<span class="st">"PurePremium"</span>], weights<span class="op">=</span>train[<span class="st">"Exposure"</span>]) <span class="op">/</span> np.average(</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    np.sqrt(glm_train <span class="op">*</span> gbm_train), weights<span class="op">=</span>train[<span class="st">"Exposure"</span>]</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> {m: pp[m].to_numpy() <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)}</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>scores[<span class="st">"Blend"</span>] <span class="op">=</span> scale <span class="op">*</span> np.sqrt(scores[<span class="st">"GLM"</span>] <span class="op">*</span> scores[<span class="st">"GBM"</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>We compare all three pairs on two metrics:</p>
+<ul>
+<li>the <strong>Gini index</strong>, a ranking metric with no per-policy loss: paired bootstrap, resampling policies together with their exposure;</li>
+<li><strong>D²</strong>, the share of the Null model’s Tweedie deviance explained: the Diebold–Mariano test on the per-policy deviance, weighted by exposure. Since all models share the same Null deviance, a difference in D² is a difference in mean deviance divided by the Null deviance.</li>
+</ul>
+<div id="40984ed6" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>pairs <span class="op">=</span> [(<span class="st">"GBM"</span>, <span class="st">"GLM"</span>), (<span class="st">"Blend"</span>, <span class="st">"GLM"</span>), (<span class="st">"Blend"</span>, <span class="st">"GBM"</span>)]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>gini <span class="op">=</span> {m: gini_index(yp, s, w) <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()}</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>gini_boot <span class="op">=</span> paired_bootstrap(gini_index, yp, scores, w, n_boot<span class="op">=</span>N_BOOT)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>gini_tests <span class="op">=</span> {<span class="ss">f"</span><span class="sc">{</span>a<span class="sc">}</span><span class="ss"> − </span><span class="sc">{</span>c<span class="sc">}</span><span class="ss">"</span>: bootstrap_summary(gini[a] <span class="op">-</span> gini[c], gini_boot[a] <span class="op">-</span> gini_boot[c]) <span class="cf">for</span> a, c <span class="kw">in</span> pairs}</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>deviance <span class="op">=</span> {m: tweedie_deviance(yp, s, TWEEDIE_POWER) <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()}</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>null_deviance <span class="op">=</span> np.average(tweedie_deviance(yp, pp[<span class="st">"Null"</span>], TWEEDIE_POWER), weights<span class="op">=</span>w)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>d2_tests <span class="op">=</span> {}</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> a, c <span class="kw">in</span> pairs:</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    dm <span class="op">=</span> diebold_mariano(deviance[c], deviance[a], w)  <span class="co"># positive: model a has lower deviance</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    scaled <span class="op">=</span> [<span class="st">"difference"</span>, <span class="st">"std. error"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    d2_tests[<span class="ss">f"</span><span class="sc">{</span>a<span class="sc">}</span><span class="ss"> − </span><span class="sc">{</span>c<span class="sc">}</span><span class="ss">"</span>] <span class="op">=</span> pd.concat([dm[scaled] <span class="op">/</span> null_deviance, dm[[<span class="st">"p-value"</span>]]])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-blend-intervals" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">3.2</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>plot_intervals(pd.DataFrame(gini_tests).T, ax<span class="op">=</span>axes[<span class="dv">0</span>], xlabel<span class="op">=</span><span class="st">"Difference in Gini index"</span>, title<span class="op">=</span><span class="st">"Gini (ranking)"</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>plot_intervals(pd.DataFrame(d2_tests).T, ax<span class="op">=</span>axes[<span class="dv">1</span>], xlabel<span class="op">=</span><span class="st">"Difference in D²"</span>, title<span class="op">=</span><span class="st">"D² (deviance)"</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-blend-intervals" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-blend-intervals-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="model-comparison_files/figure-html/fig-blend-intervals-output-1.png" width="1091" height="341" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-blend-intervals-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Differences in Gini index (paired bootstrap) and D² (Diebold–Mariano) between the pure premium models, with 95% intervals. An interval crossing 0 is compatible with no difference.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>pd.concat({<span class="st">"Gini (bootstrap)"</span>: comparison_table(gini_tests, <span class="st">".3f"</span>),</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>           <span class="st">"D² (Diebold–Mariano)"</span>: comparison_table(d2_tests, <span class="st">".4f"</span>)}, axis<span class="op">=</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-blend-tests" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="12">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-blend-tests-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;4: Pure premium: differences between the models, test set.
+</figcaption>
+<div aria-describedby="tbl-blend-tests-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="12">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th colspan="4" data-quarto-table-cell-role="th" data-halign="left">Gini (bootstrap)</th>
+<th colspan="4" data-quarto-table-cell-role="th" data-halign="left">D² (Diebold–Mariano)</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">difference</th>
+<th data-quarto-table-cell-role="th">std. error</th>
+<th data-quarto-table-cell-role="th">95% interval</th>
+<th data-quarto-table-cell-role="th">p-value</th>
+<th data-quarto-table-cell-role="th">difference</th>
+<th data-quarto-table-cell-role="th">std. error</th>
+<th data-quarto-table-cell-role="th">95% interval</th>
+<th data-quarto-table-cell-role="th">p-value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GBM − GLM</th>
+<td>0.002</td>
+<td>0.014</td>
+<td>[-0.025, 0.028]</td>
+<td>0.913</td>
+<td>0.0007</td>
+<td>0.0015</td>
+<td>[-0.0021, 0.0036]</td>
+<td>0.619</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Blend − GLM</th>
+<td>0.015</td>
+<td>0.006</td>
+<td>[0.004, 0.027]</td>
+<td>0.018</td>
+<td>0.0020</td>
+<td>0.0008</td>
+<td>[0.0004, 0.0035]</td>
+<td>0.012</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Blend − GBM</th>
+<td>0.013</td>
+<td>0.008</td>
+<td>[-0.001, 0.030]</td>
+<td>0.084</td>
+<td>0.0012</td>
+<td>0.0007</td>
+<td>[-0.0002, 0.0027]</td>
+<td>0.093</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>Three conclusions, from clear to uncertain:</p>
+<ul>
+<li><strong>GBM against GLM: no detectable difference.</strong> The Gini difference is +0.002 with an interval from -0.025 to 0.028, and the D² difference is just as inconclusive (p = 0.619). The GBM’s clearly better AUC for <code>HasClaim</code> does <strong>not</strong> carry over to pure premium, where claim sizes add a large amount of noise.</li>
+<li><strong>Blend against GLM: likely better.</strong> Both intervals exclude 0 (p = 0.018 for the Gini, 0.012 for D²). That is good evidence, though not overwhelming (see the next section).</li>
+<li><strong>Blend against GBM: suggestive, not established.</strong> Both intervals include 0: the Gini gain of 0.013 has p = 0.084, the D² gain p = 0.093.</li>
+</ul>
+<p>The pairing is again what makes any of this detectable. Each Gini on its own has a bootstrap standard error of about 0.028, so the per-model intervals overlap almost completely, yet the blend’s difference from the GLM has a standard error of only 0.006. The blend is built from the GLM and the GBM, so its ranking is close to both, and most of the noise cancels.</p>
+<p>Why are the intervals so wide? The test set has only 6,236 policies with a claim, and claim costs range over several orders of magnitude. For the deviance comparison of blend and GBM, the 170 policies that contribute most (the top 0.1%) account for 96% of the variance of the loss differential. A handful of large claims decide the result, so the test is far less precise than the size of the test set suggests.</p>
+<section id="before-declaring-a-winner" class="level3">
+<h3 class="anchored" data-anchor-id="before-declaring-a-winner">Before declaring a winner</h3>
+<p><strong>Six tests, not one.</strong> This section ran three comparisons on two metrics. With six chances, one p-value below 0.05 is less convincing than it looks. The simplest correction (Bonferroni) asks for p below 0.05 / 6 ≈ 0.008 for each test, and neither blend result passes it. The blend’s gain over the GLM is still the most credible finding: both metrics point the same way, and the double lift chart explained <em>why</em> blending should help before we tested it. But it should be confirmed on fresh data before anyone relies on it.</p>
+<p><strong>The blend was suggested by the test set.</strong> We tried it because the double lift chart, drawn on these same test policies, pointed to it. A 50/50 blend has no tuned parameter and its scale comes from the training data, so the risk of having fitted the test set is small. Had we tuned the blend’s weight on the test set, its test-set score would be optimistic and the tests above invalid. The clean procedure: choose the blend on a validation set, or on cross-validation folds of the training data, and test once on held-out data.</p>
+<p><strong>Statistical is not practical significance.</strong> A p-value says whether a difference is distinguishable from noise, not whether it matters. The GBM’s 2.2% lower log loss is overwhelmingly significant but may not justify replacing a GLM that regulators and underwriters understand. Report the <strong>interval for the difference</strong>, and judge whether its whole range would change a decision.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>What these tests leave out: the training sample
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>All three methods resample the <strong>test set</strong>. They answer: ‘are these two <em>fitted</em> models different on the population the test set comes from?’ That is the right question when deciding which fitted model to deploy. They ignore that training on a different sample would have produced different models. To ask whether one <em>modelling approach</em> beats another (GBMs against GLMs in general, on this kind of data), repeat the fitting across cross-validation folds or repeated splits, and use a test that accounts for the overlap between training sets, such as the corrected resampled t-test of Nadeau and Bengio (2003).</p>
+</div>
+</div>
+</section>
+</section>
+<section id="which-test-for-which-metric" class="level2">
+<h2 class="anchored" data-anchor-id="which-test-for-which-metric">Which test for which metric</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Average of a loss per observation?</th>
+<th>Test</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AUC</td>
+<td>no (depends on pairs)</td>
+<td>DeLong; or paired bootstrap</td>
+</tr>
+<tr class="even">
+<td>Gini index, lift ratio, top-k precision</td>
+<td>no (depends on the ranking)</td>
+<td>paired bootstrap</td>
+</tr>
+<tr class="odd">
+<td>Log loss, Brier score, deviance, MSE, MAE</td>
+<td>yes</td>
+<td>Diebold–Mariano (paired test on the loss differential); or paired bootstrap</td>
+</tr>
+<tr class="even">
+<td>D², R² (against the same Null model)</td>
+<td>ratio of averages</td>
+<td>Diebold–Mariano on the deviance or squared error</td>
+</tr>
+<tr class="odd">
+<td>Any metric, observations over time</td>
+<td>—</td>
+<td>Diebold–Mariano with a Newey–West standard error; block bootstrap</td>
+</tr>
+<tr class="even">
+<td>Any metric, grouped observations</td>
+<td>—</td>
+<td>bootstrap that resamples whole groups</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="takeaways">Takeaways</h2>
+<ul>
+<li>A metric computed on a test set is an <strong>estimate</strong>. Before preferring one model, check whether the gap is larger than its sampling uncertainty.</li>
+<li><strong>Pair the comparison.</strong> Both models are scored on the same observations, so test the difference directly. Overlapping per-model intervals say little: here the paired standard error was 2.9 times smaller than the unpaired one for AUC.</li>
+<li>The <strong>paired bootstrap</strong> works for any metric. <strong>DeLong’s test</strong> gives the same answer for AUC instantly. The <strong>Diebold–Mariano test</strong> handles any average loss, such as log loss or deviance.</li>
+<li>For <code>HasClaim</code>, the GBM beats the GLM beyond doubt. For pure premium, GBM and GLM are indistinguishable. The blend is likely better than the GLM (p = 0.018 and 0.012, not robust to a correction for multiple tests), and its edge over the GBM is suggestive but not established on this test set.</li>
+<li>Watch for <strong>multiple comparisons</strong>, for choices made on the test set, and for the difference between <strong>statistical and practical</strong> significance.</li>
+</ul>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Comparing models"</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Is one model really better, or did the test set favour it by chance? Paired bootstrap, DeLong's test for AUC and the Diebold–Mariano test for losses."</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.data <span class="im">import</span> FEATURES, train_test</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.metrics <span class="im">import</span> (</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    auc_rank,</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    bootstrap_summary,</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    delong_test,</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    diebold_mariano,</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    gini_index,</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    paired_bootstrap,</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    tweedie_deviance,</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.models <span class="im">import</span> TWEEDIE_POWER, binary_predictions, load_models, pure_premium_predictions</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.plots <span class="im">import</span> plot_intervals, plot_paired_bootstrap, use_style</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>use_style()</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> binary_predictions()</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> b[<span class="st">"y"</span>].to_numpy()</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>auc <span class="op">=</span> {m: auc_rank(y, b[m]) <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)}</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>N_BOOT <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fmt_p(p):</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">"&lt; 0.001"</span> <span class="cf">if</span> p <span class="op">&lt;</span> <span class="fl">0.001</span> <span class="cf">else</span> <span class="ss">f"</span><span class="sc">{</span>p<span class="sc">:.3f}</span><span class="ss">"</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> comparison_table(results: <span class="bu">dict</span>, digits: <span class="bu">str</span> <span class="op">=</span> <span class="st">".4g"</span>) <span class="op">-&gt;</span> pd.DataFrame:</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""One row per comparison: difference, standard error, 95% interval, p-value."""</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> pd.DataFrame(results).T</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.DataFrame({</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>        <span class="st">"difference"</span>: t[<span class="st">"difference"</span>].<span class="bu">map</span>(<span class="ss">f"</span><span class="ch">{{</span><span class="ss">:</span><span class="sc">{</span>digits<span class="sc">}</span><span class="ch">}}</span><span class="ss">"</span>.<span class="bu">format</span>),</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">"std. error"</span>: t[<span class="st">"std. error"</span>].<span class="bu">map</span>(<span class="ss">f"</span><span class="ch">{{</span><span class="ss">:</span><span class="sc">{</span>digits<span class="sc">}</span><span class="ch">}}</span><span class="ss">"</span>.<span class="bu">format</span>),</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">"95</span><span class="sc">% i</span><span class="st">nterval"</span>: [<span class="ss">f"[</span><span class="sc">{</span>lo<span class="sc">:</span>{digits}<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>hi<span class="sc">:</span>{digits}<span class="sc">}</span><span class="ss">]"</span> <span class="cf">for</span> lo, hi <span class="kw">in</span> <span class="bu">zip</span>(t[<span class="st">"lower"</span>], t[<span class="st">"upper"</span>])],</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">"p-value"</span>: t[<span class="st">"p-value"</span>].<span class="bu">map</span>(fmt_p),</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>**Question answered:** is one model really better than another, or did the</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>test set happen to favour it?</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>Every metric on the earlier pages was computed on one test set of</span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{len(y):,}"`</span> policies. A different sample of policies would have</span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>given slightly different values, so each metric is an *estimate* with sampling</span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>uncertainty. When two models are close, the question is whether their gap is</span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>larger than that uncertainty. This page covers three ways to answer it:</span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **paired bootstrap**, which works for any metric;</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**DeLong's test**, a fast formula for the difference between two AUCs;</span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **Diebold–Mariano test**, for any metric that is an average of</span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>  per-observation losses (log loss, Brier score, deviance).</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>It ends by settling a question left open on the</span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">lift chart page</span><span class="co">](../continuous/lift-lorenz.qmd)</span>: is the GLM–GBM blend's</span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>improvement real?</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a><span class="fu">## Compare the difference, not two intervals</span></span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>Both models are scored on the **same** policies. That matters: a test set that</span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>happens to contain many easy-to-rank policies flatters *both* models at once.</span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>Most of the sampling noise is shared, and it cancels in the difference.</span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>The tempting shortcut, computing an interval for each model and checking</span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>whether they overlap, ignores this. It treats the two estimates as independent</span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>and overstates the uncertainty of the difference, often by a large factor. The</span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>right approach measures the uncertainty of the **difference itself**, on paired</span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>data. All three methods below do that.</span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a><span class="fu">## The paired bootstrap</span></span>
+<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>The bootstrap estimates sampling uncertainty by imitating the sampling:</span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>draw a **resample** of the test set: as many policies as it has, drawn at</span>
+<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a>   random *with replacement* (some appear twice, others not at all);</span>
+<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>score **both models on the same resample** and record their difference;</span>
+<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>repeat many times (here <span class="in">`{python} f"{N_BOOT:,}"`</span>).</span>
+<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>The spread of the recorded differences shows how much the difference would</span>
+<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>vary from one test set to another. Its 2.5% and 97.5% quantiles give a 95%</span>
+<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>**percentile interval**.</span>
+<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a>Here is the AUC of the two <span class="in">`HasClaim`</span> models from the</span>
+<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">ROC page</span><span class="co">](../binary/roc-auc.qmd)</span>:</span>
+<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-97"><a href="#cb10-97" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-98"><a href="#cb10-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-99"><a href="#cb10-99" aria-hidden="true" tabindex="-1"></a>boot <span class="op">=</span> paired_bootstrap(auc_rank, y, {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)}, n_boot<span class="op">=</span>N_BOOT)</span>
+<span id="cb10-100"><a href="#cb10-100" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-101"><a href="#cb10-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-bootstrap-auc</span></span>
+<span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Paired bootstrap of the AUC on the test set. Left: GBM against GLM AUC, one point per resample. Right: distribution of the difference GBM − GLM, with its 95% percentile interval shaded."</span></span>
+<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.4</span>))</span>
+<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>plot_paired_bootstrap(boot, <span class="st">"GBM"</span>, <span class="st">"GLM"</span>, axes)</span>
+<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a>diff <span class="op">=</span> boot[<span class="st">"GBM"</span>] <span class="op">-</span> boot[<span class="st">"GLM"</span>]</span>
+<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a>boot_auc <span class="op">=</span> bootstrap_summary(auc[<span class="st">"GBM"</span>] <span class="op">-</span> auc[<span class="st">"GLM"</span>], diff)</span>
+<span id="cb10-118"><a href="#cb10-118" aria-hidden="true" tabindex="-1"></a>se <span class="op">=</span> boot.std()</span>
+<span id="cb10-119"><a href="#cb10-119" aria-hidden="true" tabindex="-1"></a>unpaired_se <span class="op">=</span> np.sqrt(se[<span class="st">"GLM"</span>] <span class="op">**</span> <span class="dv">2</span> <span class="op">+</span> se[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="dv">2</span>)</span>
+<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a>corr <span class="op">=</span> boot[<span class="st">"GLM"</span>].corr(boot[<span class="st">"GBM"</span>])</span>
+<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-122"><a href="#cb10-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-123"><a href="#cb10-123" aria-hidden="true" tabindex="-1"></a>The left panel shows why pairing matters. From one resample to the next, the</span>
+<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a>AUCs move together (correlation <span class="in">`{python} f"{corr:.2f}"`</span>): a resample that is</span>
+<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a>easy for the GLM is easy for the GBM too. Each AUC on its own has a standard</span>
+<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a>error of about <span class="in">`{python} f"{se.mean():.4f}"`</span>, but their difference only</span>
+<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{boot_auc['std. error']:.4f}"`</span>. Treating the models as independent</span>
+<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a>would give <span class="in">`{python} f"{unpaired_se:.4f}"`</span>, overstating the uncertainty</span>
+<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{unpaired_se / boot_auc['std. error']:.1f}"`</span> times.</span>
+<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-bootstrap-auc</span></span>
+<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "AUC of each model and of their difference, with bootstrap standard errors and 95% percentile intervals."</span></span>
+<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>{m: {<span class="st">"AUC"</span>: auc[m], <span class="st">"std. error"</span>: se[m], <span class="st">"lower"</span>: boot[m].quantile(<span class="fl">0.025</span>), <span class="st">"upper"</span>: boot[m].quantile(<span class="fl">0.975</span>)}</span>
+<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a>       <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBM − GLM"</span>: boot_auc.rename({<span class="st">"difference"</span>: <span class="st">"AUC"</span>}).drop(<span class="st">"p-value"</span>),</span>
+<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">4</span>)</span>
+<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-142"><a href="#cb10-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-143"><a href="#cb10-143" aria-hidden="true" tabindex="-1"></a>The whole interval for GBM − GLM lies above 0: not one of the</span>
+<span id="cb10-144"><a href="#cb10-144" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{N_BOOT:,}"`</span> resamples had the GLM ahead. The GBM ranks better,</span>
+<span id="cb10-145"><a href="#cb10-145" aria-hidden="true" tabindex="-1"></a>and not by chance.</span>
+<span id="cb10-146"><a href="#cb10-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-147"><a href="#cb10-147" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb10-148"><a href="#cb10-148" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why the bootstrap works, and when it doesn't</span></span>
+<span id="cb10-149"><a href="#cb10-149" aria-hidden="true" tabindex="-1"></a>The bootstrap treats the test set as a stand-in for the population and</span>
+<span id="cb10-150"><a href="#cb10-150" aria-hidden="true" tabindex="-1"></a>resamples from it. It works for any metric you can compute, however</span>
+<span id="cb10-151"><a href="#cb10-151" aria-hidden="true" tabindex="-1"></a>complicated (AUC, Gini, a lift ratio, the precision in the top 5%), which makes</span>
+<span id="cb10-152"><a href="#cb10-152" aria-hidden="true" tabindex="-1"></a>it the default tool. It needs:</span>
+<span id="cb10-153"><a href="#cb10-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-154"><a href="#cb10-154" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Independent observations.** Resampling single policies assumes each is a</span>
+<span id="cb10-155"><a href="#cb10-155" aria-hidden="true" tabindex="-1"></a>  separate draw. With grouped data (several policies per customer) or time</span>
+<span id="cb10-156"><a href="#cb10-156" aria-hidden="true" tabindex="-1"></a>  series, resample whole groups or blocks instead.</span>
+<span id="cb10-157"><a href="#cb10-157" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Enough resamples.** 1,000 is plenty for a 95% interval. Small p-values</span>
+<span id="cb10-158"><a href="#cb10-158" aria-hidden="true" tabindex="-1"></a>  need more: with B resamples a p-value can't go much below 2/B.</span>
+<span id="cb10-159"><a href="#cb10-159" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Time.** Every resample recomputes the metric for every model.</span>
+<span id="cb10-160"><a href="#cb10-160" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb10-161"><a href="#cb10-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-162"><a href="#cb10-162" aria-hidden="true" tabindex="-1"></a><span class="fu">## DeLong's test for AUC</span></span>
+<span id="cb10-163"><a href="#cb10-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-164"><a href="#cb10-164" aria-hidden="true" tabindex="-1"></a>For AUC there is a formula that gives the same answer without resampling.</span>
+<span id="cb10-165"><a href="#cb10-165" aria-hidden="true" tabindex="-1"></a>DeLong, DeLong and Clarke-Pearson (1988) start from the reading of AUC on the</span>
+<span id="cb10-166"><a href="#cb10-166" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">ROC page</span><span class="co">](../binary/roc-auc.qmd)</span>: the share of (claim, no-claim) pairs that</span>
+<span id="cb10-167"><a href="#cb10-167" aria-hidden="true" tabindex="-1"></a>the model orders correctly. That share is an average over pairs, so it splits</span>
+<span id="cb10-168"><a href="#cb10-168" aria-hidden="true" tabindex="-1"></a>into a contribution per policy, its **placement value**:</span>
+<span id="cb10-169"><a href="#cb10-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-170"><a href="#cb10-170" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>for a policy **with** a claim: the share of no-claim policies it outscores;</span>
+<span id="cb10-171"><a href="#cb10-171" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>for a policy **without** a claim: the share of claim policies that outscore it</span>
+<span id="cb10-172"><a href="#cb10-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-173"><a href="#cb10-173" aria-hidden="true" tabindex="-1"></a>(ties count ½). Both sets of placement values average to the AUC, and their</span>
+<span id="cb10-174"><a href="#cb10-174" aria-hidden="true" tabindex="-1"></a>variances give the variance of the AUC. For two models, the same computation</span>
+<span id="cb10-175"><a href="#cb10-175" aria-hidden="true" tabindex="-1"></a>on the **per-policy differences** of their placement values gives the variance</span>
+<span id="cb10-176"><a href="#cb10-176" aria-hidden="true" tabindex="-1"></a>of the AUC difference, with the pairing built in:</span>
+<span id="cb10-177"><a href="#cb10-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-178"><a href="#cb10-178" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-179"><a href="#cb10-179" aria-hidden="true" tabindex="-1"></a>\operatorname{Var}(\widehat{\text{AUC}}_A - \widehat{\text{AUC}}_B)</span>
+<span id="cb10-180"><a href="#cb10-180" aria-hidden="true" tabindex="-1"></a>= \frac{\operatorname{Var}(V^A_{1} - V^B_{1})}{n_1}</span>
+<span id="cb10-181"><a href="#cb10-181" aria-hidden="true" tabindex="-1"></a><span class="ss">+ </span>\frac{\operatorname{Var}(V^A_{0} - V^B_{0})}{n_0},</span>
+<span id="cb10-182"><a href="#cb10-182" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-183"><a href="#cb10-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-184"><a href="#cb10-184" aria-hidden="true" tabindex="-1"></a>where $V_1$ are the placement values of the $n_1$ claim policies and $V_0$</span>
+<span id="cb10-185"><a href="#cb10-185" aria-hidden="true" tabindex="-1"></a>those of the $n_0$ no-claim policies. The test statistic is the difference</span>
+<span id="cb10-186"><a href="#cb10-186" aria-hidden="true" tabindex="-1"></a>divided by its standard error, compared with the normal distribution.</span>
+<span id="cb10-187"><a href="#cb10-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-190"><a href="#cb10-190" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-191"><a href="#cb10-191" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-delong</span></span>
+<span id="cb10-192"><a href="#cb10-192" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "AUC of GBM − GLM: DeLong's test and the paired bootstrap."</span></span>
+<span id="cb10-193"><a href="#cb10-193" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-194"><a href="#cb10-194" aria-hidden="true" tabindex="-1"></a>delong <span class="op">=</span> delong_test(y, b[<span class="st">"GBM"</span>], b[<span class="st">"GLM"</span>])</span>
+<span id="cb10-195"><a href="#cb10-195" aria-hidden="true" tabindex="-1"></a>comparison_table({<span class="st">"DeLong"</span>: delong, <span class="st">"Paired bootstrap"</span>: boot_auc})</span>
+<span id="cb10-196"><a href="#cb10-196" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-197"><a href="#cb10-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-198"><a href="#cb10-198" aria-hidden="true" tabindex="-1"></a>The two methods agree closely: DeLong's standard error is</span>
+<span id="cb10-199"><a href="#cb10-199" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{delong['std. error']:.5f}"`</span>, the bootstrap's</span>
+<span id="cb10-200"><a href="#cb10-200" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{boot_auc['std. error']:.5f}"`</span>. DeLong's p-value can go far below</span>
+<span id="cb10-201"><a href="#cb10-201" aria-hidden="true" tabindex="-1"></a>anything 1,000 resamples could show, and it takes a fraction of a second. For</span>
+<span id="cb10-202"><a href="#cb10-202" aria-hidden="true" tabindex="-1"></a>AUC alone, DeLong is the standard choice. For other metrics, use the</span>
+<span id="cb10-203"><a href="#cb10-203" aria-hidden="true" tabindex="-1"></a>bootstrap.</span>
+<span id="cb10-204"><a href="#cb10-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-205"><a href="#cb10-205" aria-hidden="true" tabindex="-1"></a><span class="fu">## The Diebold–Mariano test for losses</span></span>
+<span id="cb10-206"><a href="#cb10-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-207"><a href="#cb10-207" aria-hidden="true" tabindex="-1"></a>Log loss, the Brier score, squared error and deviance are all **averages of a</span>
+<span id="cb10-208"><a href="#cb10-208" aria-hidden="true" tabindex="-1"></a>loss per observation**. Comparing two models on such a metric is comparing two</span>
+<span id="cb10-209"><a href="#cb10-209" aria-hidden="true" tabindex="-1"></a>averages over the same observations. Diebold and Mariano (1995) test this</span>
+<span id="cb10-210"><a href="#cb10-210" aria-hidden="true" tabindex="-1"></a>through the **loss differential** of each observation,</span>
+<span id="cb10-211"><a href="#cb10-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-212"><a href="#cb10-212" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-213"><a href="#cb10-213" aria-hidden="true" tabindex="-1"></a>d_i = L(y_i, \hat y^A_i) - L(y_i, \hat y^B_i),</span>
+<span id="cb10-214"><a href="#cb10-214" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-215"><a href="#cb10-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-216"><a href="#cb10-216" aria-hidden="true" tabindex="-1"></a>whose average is the difference in the metric. If the models are equally good,</span>
+<span id="cb10-217"><a href="#cb10-217" aria-hidden="true" tabindex="-1"></a>the $d_i$ average to 0 apart from noise. The test divides $\bar d$ by its</span>
+<span id="cb10-218"><a href="#cb10-218" aria-hidden="true" tabindex="-1"></a>standard error, $\text{sd}(d) / \sqrt n$, and compares the result with the</span>
+<span id="cb10-219"><a href="#cb10-219" aria-hidden="true" tabindex="-1"></a>normal distribution. With weights (such as exposure) both the average and its</span>
+<span id="cb10-220"><a href="#cb10-220" aria-hidden="true" tabindex="-1"></a>standard error are weighted.</span>
+<span id="cb10-221"><a href="#cb10-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-222"><a href="#cb10-222" aria-hidden="true" tabindex="-1"></a>For independent observations this is simply a **paired test** on the losses.</span>
+<span id="cb10-223"><a href="#cb10-223" aria-hidden="true" tabindex="-1"></a>The name comes from forecasting, where the observations form a time series:</span>
+<span id="cb10-224"><a href="#cb10-224" aria-hidden="true" tabindex="-1"></a>there the standard error must allow for autocorrelation between consecutive</span>
+<span id="cb10-225"><a href="#cb10-225" aria-hidden="true" tabindex="-1"></a>$d_i$ (a Newey–West standard error), which is the original test's real</span>
+<span id="cb10-226"><a href="#cb10-226" aria-hidden="true" tabindex="-1"></a>contribution.</span>
+<span id="cb10-227"><a href="#cb10-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-230"><a href="#cb10-230" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-231"><a href="#cb10-231" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-dm-binary</span></span>
+<span id="cb10-232"><a href="#cb10-232" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Diebold–Mariano tests for HasClaim: GLM loss − GBM loss (positive means the GBM is better)."</span></span>
+<span id="cb10-233"><a href="#cb10-233" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-234"><a href="#cb10-234" aria-hidden="true" tabindex="-1"></a>p_glm, p_gbm <span class="op">=</span> b[<span class="st">"GLM"</span>].to_numpy(), b[<span class="st">"GBM"</span>].to_numpy()</span>
+<span id="cb10-235"><a href="#cb10-235" aria-hidden="true" tabindex="-1"></a>log_loss_per_policy <span class="op">=</span> <span class="kw">lambda</span> p: <span class="op">-</span>(y <span class="op">*</span> np.log(p) <span class="op">+</span> (<span class="dv">1</span> <span class="op">-</span> y) <span class="op">*</span> np.log(<span class="dv">1</span> <span class="op">-</span> p))</span>
+<span id="cb10-236"><a href="#cb10-236" aria-hidden="true" tabindex="-1"></a>comparison_table({</span>
+<span id="cb10-237"><a href="#cb10-237" aria-hidden="true" tabindex="-1"></a>    <span class="st">"log loss"</span>: diebold_mariano(log_loss_per_policy(p_glm), log_loss_per_policy(p_gbm)),</span>
+<span id="cb10-238"><a href="#cb10-238" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brier score"</span>: diebold_mariano((p_glm <span class="op">-</span> y) <span class="op">**</span> <span class="dv">2</span>, (p_gbm <span class="op">-</span> y) <span class="op">**</span> <span class="dv">2</span>),</span>
+<span id="cb10-239"><a href="#cb10-239" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb10-240"><a href="#cb10-240" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-241"><a href="#cb10-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-244"><a href="#cb10-244" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-245"><a href="#cb10-245" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-246"><a href="#cb10-246" aria-hidden="true" tabindex="-1"></a>dm_ll <span class="op">=</span> diebold_mariano(log_loss_per_policy(p_glm), log_loss_per_policy(p_gbm))</span>
+<span id="cb10-247"><a href="#cb10-247" aria-hidden="true" tabindex="-1"></a>ll_glm <span class="op">=</span> np.mean(log_loss_per_policy(p_glm))</span>
+<span id="cb10-248"><a href="#cb10-248" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-249"><a href="#cb10-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-250"><a href="#cb10-250" aria-hidden="true" tabindex="-1"></a>The GBM's log loss is <span class="in">`{python} f"{dm_ll['difference'] / ll_glm:.1%}"`</span> lower</span>
+<span id="cb10-251"><a href="#cb10-251" aria-hidden="true" tabindex="-1"></a>than the GLM's, a small relative gain but measured very precisely: on a large</span>
+<span id="cb10-252"><a href="#cb10-252" aria-hidden="true" tabindex="-1"></a>test set even small differences in an average loss are easy to detect. The</span>
+<span id="cb10-253"><a href="#cb10-253" aria-hidden="true" tabindex="-1"></a>probabilities agree with the ranking from the AUC tests. The GBM is better on</span>
+<span id="cb10-254"><a href="#cb10-254" aria-hidden="true" tabindex="-1"></a>both.</span>
+<span id="cb10-255"><a href="#cb10-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-256"><a href="#cb10-256" aria-hidden="true" tabindex="-1"></a>Two things the Diebold–Mariano test can't do:</span>
+<span id="cb10-257"><a href="#cb10-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-258"><a href="#cb10-258" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**AUC and Gini are not averages of per-observation losses.** They depend on</span>
+<span id="cb10-259"><a href="#cb10-259" aria-hidden="true" tabindex="-1"></a>  pairs or on the ranking of the whole test set, so they have no loss</span>
+<span id="cb10-260"><a href="#cb10-260" aria-hidden="true" tabindex="-1"></a>  differential. Use DeLong or the bootstrap.</span>
+<span id="cb10-261"><a href="#cb10-261" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**It compares scores, not truth.** A significant difference in log loss</span>
+<span id="cb10-262"><a href="#cb10-262" aria-hidden="true" tabindex="-1"></a>  says one model's probabilities are closer to the outcomes on average. It</span>
+<span id="cb10-263"><a href="#cb10-263" aria-hidden="true" tabindex="-1"></a>  says nothing about *where*: for that, look at calibration plots and double</span>
+<span id="cb10-264"><a href="#cb10-264" aria-hidden="true" tabindex="-1"></a>  lift charts.</span>
+<span id="cb10-265"><a href="#cb10-265" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-266"><a href="#cb10-266" aria-hidden="true" tabindex="-1"></a><span class="fu">## Is the blend's improvement real?</span></span>
+<span id="cb10-267"><a href="#cb10-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-268"><a href="#cb10-268" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">lift chart page</span><span class="co">](../continuous/lift-lorenz.qmd)</span> found that the GLM and the</span>
+<span id="cb10-269"><a href="#cb10-269" aria-hidden="true" tabindex="-1"></a>GBM for pure premium each detect mispricing in the other, and that their</span>
+<span id="cb10-270"><a href="#cb10-270" aria-hidden="true" tabindex="-1"></a>geometric mean beats both. But all three Gini indices lay within about 0.015</span>
+<span id="cb10-271"><a href="#cb10-271" aria-hidden="true" tabindex="-1"></a>of each other, on a target where a few large claims dominate everything. Time</span>
+<span id="cb10-272"><a href="#cb10-272" aria-hidden="true" tabindex="-1"></a>to test.</span>
+<span id="cb10-273"><a href="#cb10-273" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-274"><a href="#cb10-274" aria-hidden="true" tabindex="-1"></a>One detail first. On the lift chart page, the blend was rescaled so that its</span>
+<span id="cb10-275"><a href="#cb10-275" aria-hidden="true" tabindex="-1"></a>average on the **test set** matched the actual average. That uses the test</span>
+<span id="cb10-276"><a href="#cb10-276" aria-hidden="true" tabindex="-1"></a>outcomes, which would flatter the blend's deviance. Here the scale factor</span>
+<span id="cb10-277"><a href="#cb10-277" aria-hidden="true" tabindex="-1"></a>comes from the training set, so nothing about the blend is fitted on the test</span>
+<span id="cb10-278"><a href="#cb10-278" aria-hidden="true" tabindex="-1"></a>data. (The Gini doesn't depend on the scale, so it is unchanged.)</span>
+<span id="cb10-279"><a href="#cb10-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-282"><a href="#cb10-282" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-283"><a href="#cb10-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-284"><a href="#cb10-284" aria-hidden="true" tabindex="-1"></a>pp <span class="op">=</span> pure_premium_predictions()</span>
+<span id="cb10-285"><a href="#cb10-285" aria-hidden="true" tabindex="-1"></a>yp, w <span class="op">=</span> pp[<span class="st">"y"</span>].to_numpy(), pp[<span class="st">"w"</span>].to_numpy()</span>
+<span id="cb10-286"><a href="#cb10-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-287"><a href="#cb10-287" aria-hidden="true" tabindex="-1"></a>train, fitted <span class="op">=</span> train_test().train, load_models()[<span class="st">"pure_premium"</span>]</span>
+<span id="cb10-288"><a href="#cb10-288" aria-hidden="true" tabindex="-1"></a>glm_train, gbm_train <span class="op">=</span> (fitted[m].predict(train[FEATURES]) <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>))</span>
+<span id="cb10-289"><a href="#cb10-289" aria-hidden="true" tabindex="-1"></a>scale <span class="op">=</span> np.average(train[<span class="st">"PurePremium"</span>], weights<span class="op">=</span>train[<span class="st">"Exposure"</span>]) <span class="op">/</span> np.average(</span>
+<span id="cb10-290"><a href="#cb10-290" aria-hidden="true" tabindex="-1"></a>    np.sqrt(glm_train <span class="op">*</span> gbm_train), weights<span class="op">=</span>train[<span class="st">"Exposure"</span>]</span>
+<span id="cb10-291"><a href="#cb10-291" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-292"><a href="#cb10-292" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> {m: pp[m].to_numpy() <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)}</span>
+<span id="cb10-293"><a href="#cb10-293" aria-hidden="true" tabindex="-1"></a>scores[<span class="st">"Blend"</span>] <span class="op">=</span> scale <span class="op">*</span> np.sqrt(scores[<span class="st">"GLM"</span>] <span class="op">*</span> scores[<span class="st">"GBM"</span>])</span>
+<span id="cb10-294"><a href="#cb10-294" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-295"><a href="#cb10-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-296"><a href="#cb10-296" aria-hidden="true" tabindex="-1"></a>We compare all three pairs on two metrics:</span>
+<span id="cb10-297"><a href="#cb10-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-298"><a href="#cb10-298" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **Gini index**, a ranking metric with no per-policy loss: paired</span>
+<span id="cb10-299"><a href="#cb10-299" aria-hidden="true" tabindex="-1"></a>  bootstrap, resampling policies together with their exposure;</span>
+<span id="cb10-300"><a href="#cb10-300" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**D²**, the share of the Null model's Tweedie deviance explained: the</span>
+<span id="cb10-301"><a href="#cb10-301" aria-hidden="true" tabindex="-1"></a>  Diebold–Mariano test on the per-policy deviance, weighted by exposure. Since</span>
+<span id="cb10-302"><a href="#cb10-302" aria-hidden="true" tabindex="-1"></a>  all models share the same Null deviance, a difference in D² is a difference</span>
+<span id="cb10-303"><a href="#cb10-303" aria-hidden="true" tabindex="-1"></a>  in mean deviance divided by the Null deviance.</span>
+<span id="cb10-304"><a href="#cb10-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-307"><a href="#cb10-307" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-308"><a href="#cb10-308" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-309"><a href="#cb10-309" aria-hidden="true" tabindex="-1"></a>pairs <span class="op">=</span> [(<span class="st">"GBM"</span>, <span class="st">"GLM"</span>), (<span class="st">"Blend"</span>, <span class="st">"GLM"</span>), (<span class="st">"Blend"</span>, <span class="st">"GBM"</span>)]</span>
+<span id="cb10-310"><a href="#cb10-310" aria-hidden="true" tabindex="-1"></a>gini <span class="op">=</span> {m: gini_index(yp, s, w) <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()}</span>
+<span id="cb10-311"><a href="#cb10-311" aria-hidden="true" tabindex="-1"></a>gini_boot <span class="op">=</span> paired_bootstrap(gini_index, yp, scores, w, n_boot<span class="op">=</span>N_BOOT)</span>
+<span id="cb10-312"><a href="#cb10-312" aria-hidden="true" tabindex="-1"></a>gini_tests <span class="op">=</span> {<span class="ss">f"</span><span class="sc">{</span>a<span class="sc">}</span><span class="ss"> − </span><span class="sc">{</span>c<span class="sc">}</span><span class="ss">"</span>: bootstrap_summary(gini[a] <span class="op">-</span> gini[c], gini_boot[a] <span class="op">-</span> gini_boot[c]) <span class="cf">for</span> a, c <span class="kw">in</span> pairs}</span>
+<span id="cb10-313"><a href="#cb10-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-314"><a href="#cb10-314" aria-hidden="true" tabindex="-1"></a>deviance <span class="op">=</span> {m: tweedie_deviance(yp, s, TWEEDIE_POWER) <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()}</span>
+<span id="cb10-315"><a href="#cb10-315" aria-hidden="true" tabindex="-1"></a>null_deviance <span class="op">=</span> np.average(tweedie_deviance(yp, pp[<span class="st">"Null"</span>], TWEEDIE_POWER), weights<span class="op">=</span>w)</span>
+<span id="cb10-316"><a href="#cb10-316" aria-hidden="true" tabindex="-1"></a>d2_tests <span class="op">=</span> {}</span>
+<span id="cb10-317"><a href="#cb10-317" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> a, c <span class="kw">in</span> pairs:</span>
+<span id="cb10-318"><a href="#cb10-318" aria-hidden="true" tabindex="-1"></a>    dm <span class="op">=</span> diebold_mariano(deviance[c], deviance[a], w)  <span class="co"># positive: model a has lower deviance</span></span>
+<span id="cb10-319"><a href="#cb10-319" aria-hidden="true" tabindex="-1"></a>    scaled <span class="op">=</span> [<span class="st">"difference"</span>, <span class="st">"std. error"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>]</span>
+<span id="cb10-320"><a href="#cb10-320" aria-hidden="true" tabindex="-1"></a>    d2_tests[<span class="ss">f"</span><span class="sc">{</span>a<span class="sc">}</span><span class="ss"> − </span><span class="sc">{</span>c<span class="sc">}</span><span class="ss">"</span>] <span class="op">=</span> pd.concat([dm[scaled] <span class="op">/</span> null_deviance, dm[[<span class="st">"p-value"</span>]]])</span>
+<span id="cb10-321"><a href="#cb10-321" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-322"><a href="#cb10-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-325"><a href="#cb10-325" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-326"><a href="#cb10-326" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-blend-intervals</span></span>
+<span id="cb10-327"><a href="#cb10-327" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Differences in Gini index (paired bootstrap) and D² (Diebold–Mariano) between the pure premium models, with 95% intervals. An interval crossing 0 is compatible with no difference."</span></span>
+<span id="cb10-328"><a href="#cb10-328" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">3.2</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-329"><a href="#cb10-329" aria-hidden="true" tabindex="-1"></a>plot_intervals(pd.DataFrame(gini_tests).T, ax<span class="op">=</span>axes[<span class="dv">0</span>], xlabel<span class="op">=</span><span class="st">"Difference in Gini index"</span>, title<span class="op">=</span><span class="st">"Gini (ranking)"</span>)</span>
+<span id="cb10-330"><a href="#cb10-330" aria-hidden="true" tabindex="-1"></a>plot_intervals(pd.DataFrame(d2_tests).T, ax<span class="op">=</span>axes[<span class="dv">1</span>], xlabel<span class="op">=</span><span class="st">"Difference in D²"</span>, title<span class="op">=</span><span class="st">"D² (deviance)"</span>)</span>
+<span id="cb10-331"><a href="#cb10-331" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb10-332"><a href="#cb10-332" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-333"><a href="#cb10-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-336"><a href="#cb10-336" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-337"><a href="#cb10-337" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-blend-tests</span></span>
+<span id="cb10-338"><a href="#cb10-338" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Pure premium: differences between the models, test set."</span></span>
+<span id="cb10-339"><a href="#cb10-339" aria-hidden="true" tabindex="-1"></a>pd.concat({<span class="st">"Gini (bootstrap)"</span>: comparison_table(gini_tests, <span class="st">".3f"</span>),</span>
+<span id="cb10-340"><a href="#cb10-340" aria-hidden="true" tabindex="-1"></a>           <span class="st">"D² (Diebold–Mariano)"</span>: comparison_table(d2_tests, <span class="st">".4f"</span>)}, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb10-341"><a href="#cb10-341" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-342"><a href="#cb10-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-345"><a href="#cb10-345" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-346"><a href="#cb10-346" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-347"><a href="#cb10-347" aria-hidden="true" tabindex="-1"></a>g, d <span class="op">=</span> pd.DataFrame(gini_tests).T, pd.DataFrame(d2_tests).T</span>
+<span id="cb10-348"><a href="#cb10-348" aria-hidden="true" tabindex="-1"></a>gini_se <span class="op">=</span> gini_boot.std()</span>
+<span id="cb10-349"><a href="#cb10-349" aria-hidden="true" tabindex="-1"></a><span class="co"># How concentrated is the evidence? Share of the differential's variance from the top 0.1% of policies.</span></span>
+<span id="cb10-350"><a href="#cb10-350" aria-hidden="true" tabindex="-1"></a>diff_dev <span class="op">=</span> deviance[<span class="st">"GBM"</span>] <span class="op">-</span> deviance[<span class="st">"Blend"</span>]</span>
+<span id="cb10-351"><a href="#cb10-351" aria-hidden="true" tabindex="-1"></a>contrib <span class="op">=</span> np.sort(w<span class="op">**</span><span class="dv">2</span> <span class="op">*</span> (diff_dev <span class="op">-</span> np.average(diff_dev, weights<span class="op">=</span>w)) <span class="op">**</span> <span class="dv">2</span>)[::<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb10-352"><a href="#cb10-352" aria-hidden="true" tabindex="-1"></a>top_k <span class="op">=</span> <span class="bu">int</span>(np.ceil(<span class="fl">0.001</span> <span class="op">*</span> yp.size))</span>
+<span id="cb10-353"><a href="#cb10-353" aria-hidden="true" tabindex="-1"></a>top_share <span class="op">=</span> contrib[:top_k].<span class="bu">sum</span>() <span class="op">/</span> contrib.<span class="bu">sum</span>()</span>
+<span id="cb10-354"><a href="#cb10-354" aria-hidden="true" tabindex="-1"></a>n_claims <span class="op">=</span> <span class="bu">int</span>((yp <span class="op">&gt;</span> <span class="dv">0</span>).<span class="bu">sum</span>())</span>
+<span id="cb10-355"><a href="#cb10-355" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-356"><a href="#cb10-356" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-357"><a href="#cb10-357" aria-hidden="true" tabindex="-1"></a>Three conclusions, from clear to uncertain:</span>
+<span id="cb10-358"><a href="#cb10-358" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-359"><a href="#cb10-359" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**GBM against GLM: no detectable difference.** The Gini difference is</span>
+<span id="cb10-360"><a href="#cb10-360" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{g.loc['GBM − GLM', 'difference']:+.3f}"`</span> with an interval from</span>
+<span id="cb10-361"><a href="#cb10-361" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{g.loc['GBM − GLM', 'lower']:.3f}"`</span> to</span>
+<span id="cb10-362"><a href="#cb10-362" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{g.loc['GBM − GLM', 'upper']:.3f}"`</span>, and the D² difference is</span>
+<span id="cb10-363"><a href="#cb10-363" aria-hidden="true" tabindex="-1"></a>  just as inconclusive (p = <span class="in">`{python} fmt_p(d.loc['GBM − GLM', 'p-value'])`</span>).</span>
+<span id="cb10-364"><a href="#cb10-364" aria-hidden="true" tabindex="-1"></a>  The GBM's clearly better AUC for <span class="in">`HasClaim`</span> does **not** carry over to pure</span>
+<span id="cb10-365"><a href="#cb10-365" aria-hidden="true" tabindex="-1"></a>  premium, where claim sizes add a large amount of noise.</span>
+<span id="cb10-366"><a href="#cb10-366" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Blend against GLM: likely better.** Both intervals exclude 0</span>
+<span id="cb10-367"><a href="#cb10-367" aria-hidden="true" tabindex="-1"></a>  (p = <span class="in">`{python} fmt_p(g.loc['Blend − GLM', 'p-value'])`</span> for the Gini,</span>
+<span id="cb10-368"><a href="#cb10-368" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} fmt_p(d.loc['Blend − GLM', 'p-value'])`</span> for D²). That is</span>
+<span id="cb10-369"><a href="#cb10-369" aria-hidden="true" tabindex="-1"></a>  good evidence, though not overwhelming (see the next section).</span>
+<span id="cb10-370"><a href="#cb10-370" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Blend against GBM: suggestive, not established.** Both intervals include</span>
+<span id="cb10-371"><a href="#cb10-371" aria-hidden="true" tabindex="-1"></a>  0: the Gini gain of <span class="in">`{python} f"{g.loc['Blend − GBM', 'difference']:.3f}"`</span></span>
+<span id="cb10-372"><a href="#cb10-372" aria-hidden="true" tabindex="-1"></a>  has p = <span class="in">`{python} fmt_p(g.loc['Blend − GBM', 'p-value'])`</span>, the D² gain</span>
+<span id="cb10-373"><a href="#cb10-373" aria-hidden="true" tabindex="-1"></a>  p = <span class="in">`{python} fmt_p(d.loc['Blend − GBM', 'p-value'])`</span>.</span>
+<span id="cb10-374"><a href="#cb10-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-375"><a href="#cb10-375" aria-hidden="true" tabindex="-1"></a>The pairing is again what makes any of this detectable. Each Gini on its own</span>
+<span id="cb10-376"><a href="#cb10-376" aria-hidden="true" tabindex="-1"></a>has a bootstrap standard error of about <span class="in">`{python} f"{gini_se.mean():.3f}"`</span>, so</span>
+<span id="cb10-377"><a href="#cb10-377" aria-hidden="true" tabindex="-1"></a>the per-model intervals overlap almost completely, yet the blend's difference</span>
+<span id="cb10-378"><a href="#cb10-378" aria-hidden="true" tabindex="-1"></a>from the GLM has a standard error of only</span>
+<span id="cb10-379"><a href="#cb10-379" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{g.loc['Blend − GLM', 'std. error']:.3f}"`</span>. The blend is built from</span>
+<span id="cb10-380"><a href="#cb10-380" aria-hidden="true" tabindex="-1"></a>the GLM and the GBM, so its ranking is close to both, and most of the noise</span>
+<span id="cb10-381"><a href="#cb10-381" aria-hidden="true" tabindex="-1"></a>cancels.</span>
+<span id="cb10-382"><a href="#cb10-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-383"><a href="#cb10-383" aria-hidden="true" tabindex="-1"></a>Why are the intervals so wide? The test set has only</span>
+<span id="cb10-384"><a href="#cb10-384" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{n_claims:,}"`</span> policies with a claim, and claim costs range over</span>
+<span id="cb10-385"><a href="#cb10-385" aria-hidden="true" tabindex="-1"></a>several orders of magnitude. For the deviance comparison of blend and GBM,</span>
+<span id="cb10-386"><a href="#cb10-386" aria-hidden="true" tabindex="-1"></a>the <span class="in">`{python} f"{top_k:,}"`</span> policies that contribute most (the top 0.1%)</span>
+<span id="cb10-387"><a href="#cb10-387" aria-hidden="true" tabindex="-1"></a>account for <span class="in">`{python} f"{top_share:.0%}"`</span> of the variance of the loss</span>
+<span id="cb10-388"><a href="#cb10-388" aria-hidden="true" tabindex="-1"></a>differential. A handful of large claims decide the result, so the test is far</span>
+<span id="cb10-389"><a href="#cb10-389" aria-hidden="true" tabindex="-1"></a>less precise than the size of the test set suggests.</span>
+<span id="cb10-390"><a href="#cb10-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-391"><a href="#cb10-391" aria-hidden="true" tabindex="-1"></a><span class="fu">### Before declaring a winner</span></span>
+<span id="cb10-392"><a href="#cb10-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-393"><a href="#cb10-393" aria-hidden="true" tabindex="-1"></a>**Six tests, not one.** This section ran three comparisons on two metrics.</span>
+<span id="cb10-394"><a href="#cb10-394" aria-hidden="true" tabindex="-1"></a>With six chances, one p-value below 0.05 is less convincing than it looks.</span>
+<span id="cb10-395"><a href="#cb10-395" aria-hidden="true" tabindex="-1"></a>The simplest correction (Bonferroni) asks for p below 0.05 / 6 ≈ 0.008 for</span>
+<span id="cb10-396"><a href="#cb10-396" aria-hidden="true" tabindex="-1"></a>each test, and neither blend result passes it. The blend's gain over the GLM is</span>
+<span id="cb10-397"><a href="#cb10-397" aria-hidden="true" tabindex="-1"></a>still the most credible finding: both metrics point the same way, and the</span>
+<span id="cb10-398"><a href="#cb10-398" aria-hidden="true" tabindex="-1"></a>double lift chart explained *why* blending should help before we tested it.</span>
+<span id="cb10-399"><a href="#cb10-399" aria-hidden="true" tabindex="-1"></a>But it should be confirmed on fresh data before anyone relies on it.</span>
+<span id="cb10-400"><a href="#cb10-400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-401"><a href="#cb10-401" aria-hidden="true" tabindex="-1"></a>**The blend was suggested by the test set.** We tried it because the double</span>
+<span id="cb10-402"><a href="#cb10-402" aria-hidden="true" tabindex="-1"></a>lift chart, drawn on these same test policies, pointed to it. A 50/50 blend has</span>
+<span id="cb10-403"><a href="#cb10-403" aria-hidden="true" tabindex="-1"></a>no tuned parameter and its scale comes from the training data, so the risk of</span>
+<span id="cb10-404"><a href="#cb10-404" aria-hidden="true" tabindex="-1"></a>having fitted the test set is small. Had we tuned the blend's weight on the</span>
+<span id="cb10-405"><a href="#cb10-405" aria-hidden="true" tabindex="-1"></a>test set, its test-set score would be optimistic and the tests above</span>
+<span id="cb10-406"><a href="#cb10-406" aria-hidden="true" tabindex="-1"></a>invalid. The clean procedure: choose the blend on a validation set, or on</span>
+<span id="cb10-407"><a href="#cb10-407" aria-hidden="true" tabindex="-1"></a>cross-validation folds of the training data, and test once on held-out data.</span>
+<span id="cb10-408"><a href="#cb10-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-409"><a href="#cb10-409" aria-hidden="true" tabindex="-1"></a>**Statistical is not practical significance.** A p-value says whether a</span>
+<span id="cb10-410"><a href="#cb10-410" aria-hidden="true" tabindex="-1"></a>difference is distinguishable from noise, not whether it matters. The GBM's</span>
+<span id="cb10-411"><a href="#cb10-411" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{dm_ll['difference'] / ll_glm:.1%}"`</span> lower log loss is</span>
+<span id="cb10-412"><a href="#cb10-412" aria-hidden="true" tabindex="-1"></a>overwhelmingly significant but may not justify replacing a GLM that regulators</span>
+<span id="cb10-413"><a href="#cb10-413" aria-hidden="true" tabindex="-1"></a>and underwriters understand. Report the **interval for the difference**, and</span>
+<span id="cb10-414"><a href="#cb10-414" aria-hidden="true" tabindex="-1"></a>judge whether its whole range would change a decision.</span>
+<span id="cb10-415"><a href="#cb10-415" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-416"><a href="#cb10-416" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb10-417"><a href="#cb10-417" aria-hidden="true" tabindex="-1"></a><span class="fu">## What these tests leave out: the training sample</span></span>
+<span id="cb10-418"><a href="#cb10-418" aria-hidden="true" tabindex="-1"></a>All three methods resample the **test set**. They answer: 'are these two</span>
+<span id="cb10-419"><a href="#cb10-419" aria-hidden="true" tabindex="-1"></a>*fitted* models different on the population the test set comes from?' That is</span>
+<span id="cb10-420"><a href="#cb10-420" aria-hidden="true" tabindex="-1"></a>the right question when deciding which fitted model to deploy. They ignore that</span>
+<span id="cb10-421"><a href="#cb10-421" aria-hidden="true" tabindex="-1"></a>training on a different sample would have produced different models. To ask</span>
+<span id="cb10-422"><a href="#cb10-422" aria-hidden="true" tabindex="-1"></a>whether one *modelling approach* beats another (GBMs against GLMs in general,</span>
+<span id="cb10-423"><a href="#cb10-423" aria-hidden="true" tabindex="-1"></a>on this kind of data), repeat the fitting across cross-validation folds or</span>
+<span id="cb10-424"><a href="#cb10-424" aria-hidden="true" tabindex="-1"></a>repeated splits, and use a test that accounts for the overlap between training</span>
+<span id="cb10-425"><a href="#cb10-425" aria-hidden="true" tabindex="-1"></a>sets, such as the corrected resampled t-test of Nadeau and Bengio (2003).</span>
+<span id="cb10-426"><a href="#cb10-426" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb10-427"><a href="#cb10-427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-428"><a href="#cb10-428" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which test for which metric</span></span>
+<span id="cb10-429"><a href="#cb10-429" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-430"><a href="#cb10-430" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Metric <span class="pp">|</span> Average of a loss per observation? <span class="pp">|</span> Test <span class="pp">|</span></span>
+<span id="cb10-431"><a href="#cb10-431" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb10-432"><a href="#cb10-432" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> AUC <span class="pp">|</span> no (depends on pairs) <span class="pp">|</span> DeLong; or paired bootstrap <span class="pp">|</span></span>
+<span id="cb10-433"><a href="#cb10-433" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Gini index, lift ratio, top-k precision <span class="pp">|</span> no (depends on the ranking) <span class="pp">|</span> paired bootstrap <span class="pp">|</span></span>
+<span id="cb10-434"><a href="#cb10-434" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Log loss, Brier score, deviance, MSE, MAE <span class="pp">|</span> yes <span class="pp">|</span> Diebold–Mariano (paired test on the loss differential); or paired bootstrap <span class="pp">|</span></span>
+<span id="cb10-435"><a href="#cb10-435" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> D², R² (against the same Null model) <span class="pp">|</span> ratio of averages <span class="pp">|</span> Diebold–Mariano on the deviance or squared error <span class="pp">|</span></span>
+<span id="cb10-436"><a href="#cb10-436" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Any metric, observations over time <span class="pp">|</span> — <span class="pp">|</span> Diebold–Mariano with a Newey–West standard error; block bootstrap <span class="pp">|</span></span>
+<span id="cb10-437"><a href="#cb10-437" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Any metric, grouped observations <span class="pp">|</span> — <span class="pp">|</span> bootstrap that resamples whole groups <span class="pp">|</span></span>
+<span id="cb10-438"><a href="#cb10-438" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-439"><a href="#cb10-439" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
+<span id="cb10-440"><a href="#cb10-440" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-441"><a href="#cb10-441" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A metric computed on a test set is an **estimate**. Before preferring one</span>
+<span id="cb10-442"><a href="#cb10-442" aria-hidden="true" tabindex="-1"></a>  model, check whether the gap is larger than its sampling uncertainty.</span>
+<span id="cb10-443"><a href="#cb10-443" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Pair the comparison.** Both models are scored on the same observations, so</span>
+<span id="cb10-444"><a href="#cb10-444" aria-hidden="true" tabindex="-1"></a>  test the difference directly. Overlapping per-model intervals say little:</span>
+<span id="cb10-445"><a href="#cb10-445" aria-hidden="true" tabindex="-1"></a>  here the paired standard error was</span>
+<span id="cb10-446"><a href="#cb10-446" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{unpaired_se / boot_auc['std. error']:.1f}"`</span> times smaller than the</span>
+<span id="cb10-447"><a href="#cb10-447" aria-hidden="true" tabindex="-1"></a>  unpaired one for AUC.</span>
+<span id="cb10-448"><a href="#cb10-448" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **paired bootstrap** works for any metric. **DeLong's test** gives the</span>
+<span id="cb10-449"><a href="#cb10-449" aria-hidden="true" tabindex="-1"></a>  same answer for AUC instantly. The **Diebold–Mariano test** handles any</span>
+<span id="cb10-450"><a href="#cb10-450" aria-hidden="true" tabindex="-1"></a>  average loss, such as log loss or deviance.</span>
+<span id="cb10-451"><a href="#cb10-451" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For <span class="in">`HasClaim`</span>, the GBM beats the GLM beyond doubt. For pure premium, GBM</span>
+<span id="cb10-452"><a href="#cb10-452" aria-hidden="true" tabindex="-1"></a>  and GLM are indistinguishable. The blend is likely better than the GLM</span>
+<span id="cb10-453"><a href="#cb10-453" aria-hidden="true" tabindex="-1"></a>  (p = <span class="in">`{python} fmt_p(g.loc['Blend − GLM', 'p-value'])`</span> and</span>
+<span id="cb10-454"><a href="#cb10-454" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} fmt_p(d.loc['Blend − GLM', 'p-value'])`</span>, not robust to a correction for multiple tests), and its edge</span>
+<span id="cb10-455"><a href="#cb10-455" aria-hidden="true" tabindex="-1"></a>  over the GBM is suggestive but not established on this test set.</span>
+<span id="cb10-456"><a href="#cb10-456" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Watch for **multiple comparisons**, for choices made on the test set, and</span>
+<span id="cb10-457"><a href="#cb10-457" aria-hidden="true" tabindex="-1"></a>  for the difference between **statistical and practical** significance.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

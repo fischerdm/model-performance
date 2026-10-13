@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Does the model separate low risks from high risks? Lift charts, double lift charts, Lorenz curves and the Gini index for pure premium.">
+
+<title>Lift charts and Lorenz curves – Model Performance</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-1bdbca75b362e6c5a8c09207907ff998.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/continuous/error-metrics.html">Continuous outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/continuous/lift-lorenz.html">Lift charts and Lorenz curves</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../../">Model Performance</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Measuring model performance</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/foundations/data-and-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data and models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Binary outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/confusion-matrix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Confusion matrix and threshold metrics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/roc-auc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC curve and AUC</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/precision-recall.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision–recall curves</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/calibration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Calibration and proper scoring rules</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Continuous outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/error-metrics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Error metrics: bias, MAE, RMSE and R²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/deviance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Deviance and D²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/lift-lorenz.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Lift charts and Lorenz curves</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Comparing models</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/comparison/model-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Comparing models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-lift-chart" id="toc-the-lift-chart" class="nav-link active" data-scroll-target="#the-lift-chart">The lift chart</a></li>
+  <li><a href="#the-double-lift-chart" id="toc-the-double-lift-chart" class="nav-link" data-scroll-target="#the-double-lift-chart">The double lift chart</a>
+  <ul class="collapse">
+  <li><a href="#what-the-double-lift-chart-suggests-blend" id="toc-what-the-double-lift-chart-suggests-blend" class="nav-link" data-scroll-target="#what-the-double-lift-chart-suggests-blend">What the double lift chart suggests: blend</a></li>
+  </ul></li>
+  <li><a href="#the-lorenz-curve-and-the-gini-index" id="toc-the-lorenz-curve-and-the-gini-index" class="nav-link" data-scroll-target="#the-lorenz-curve-and-the-gini-index">The Lorenz curve and the Gini index</a>
+  <ul class="collapse">
+  <li><a href="#what-the-gini-cant-see" id="toc-what-the-gini-cant-see" class="nav-link" data-scroll-target="#what-the-gini-cant-see">What the Gini can’t see</a></li>
+  </ul></li>
+  <li><a href="#which-tool-for-which-question" id="toc-which-tool-for-which-question" class="nav-link" data-scroll-target="#which-tool-for-which-question">Which tool for which question</a></li>
+  <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/continuous/error-metrics.html">Continuous outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/continuous/lift-lorenz.html">Lift charts and Lorenz curves</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Lift charts and Lorenz curves</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+</div>
+
+<div>
+  <div class="description">
+    Does the model separate low risks from high risks? Lift charts, double lift charts, Lorenz curves and the Gini index for pure premium.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><strong>Question answered:</strong> does the model separate low risks from high risks, and is its prediction right for each risk segment?</p>
+<p>The <a href="../../docs/continuous/deviance.html">deviance page</a> ended with D² values of about 1.3%: individual claims are mostly chance, so any average over individual errors is small. A pricing model is judged on something else: whether the policies it calls expensive really cost more, <em>as a group</em>, than the ones it calls cheap. Grouping averages away the noise. This page covers the standard tools for that:</p>
+<ul>
+<li>the <strong>lift chart</strong>: actual against predicted, by decile of the prediction;</li>
+<li>the <strong>double lift chart</strong>: two models compared where they disagree;</li>
+<li>the <strong>Lorenz curve</strong> and the <strong>Gini index</strong>: one number for how well a model separates risks.</li>
+</ul>
+<section id="the-lift-chart" class="level2">
+<h2 class="anchored" data-anchor-id="the-lift-chart">The lift chart</h2>
+<p>To draw a lift chart (also called a <em>quantile plot</em>):</p>
+<ol type="1">
+<li>sort the test policies by their predicted pure premium,</li>
+<li>cut them into 10 groups (<strong>deciles</strong>) holding the same total exposure,</li>
+<li>per decile, compare the exposure-weighted <strong>average prediction</strong> with the <strong>average actual</strong> pure premium.</li>
+</ol>
+<p>The deciles hold equal <em>exposure</em> rather than equal numbers of policies, because pure premium is a rate per policy-year: a decile full of short policies would hold far less information than its policy count suggests.</p>
+<div id="cell-fig-lift" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>lift <span class="op">=</span> {m: segment_table(y, {m: p[m]}, w, sort_by<span class="op">=</span>p[m]) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.2</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, models):</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    plot_segments(lift[m], [m], ax<span class="op">=</span>ax, xlabel<span class="op">=</span><span class="ss">f"Decile of </span><span class="sc">{</span>m<span class="sc">}</span><span class="ss"> prediction (1 = lowest)"</span>, title<span class="op">=</span>m)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_ylabel(<span class="st">""</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-lift" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="lift-lorenz_files/figure-html/fig-lift-output-1.png" width="1087" height="451" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Lift charts on the test set: average actual and predicted pure premium per decile of each model’s prediction (deciles of equal exposure). Bars are 95% intervals for the actual average.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>A good lift chart shows three things:</p>
+<ul>
+<li><strong>Monotonicity.</strong> Actual cost should rise from decile to decile. Both models get there broadly, with a few dips in the middle.</li>
+<li><strong>Spread.</strong> The steeper the actual curve, the better the model separates risks. The ratio of the top to the bottom decile is a common summary (the ‘lift’ that gives the chart its name).</li>
+<li><strong>Agreement.</strong> The predicted line should run through the actual points. A gap shows the predictions are off for that segment even when the overall average is right: calibration, checked by group.</li>
+</ul>
+<div class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    m: {</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"actual, decile 1 (EUR)"</span>: t.loc[<span class="dv">1</span>, <span class="st">"actual"</span>],</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"actual, decile 10 (EUR)"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>],</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lift: decile 10 ÷ decile 1"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="op">/</span> t.loc[<span class="dv">1</span>, <span class="st">"actual"</span>],</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lift: decile 10 ÷ overall"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="op">/</span> mean,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"predicted ÷ actual, decile 10"</span>: t.loc[<span class="dv">10</span>, m] <span class="op">/</span> t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>],</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> m, t <span class="kw">in</span> lift.items()</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-lift" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="3">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Summaries of the lift charts. Lift is the top decile’s actual average divided by the bottom decile’s (or by the overall average).
+</figcaption>
+<div aria-describedby="tbl-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">GLM</th>
+<th data-quarto-table-cell-role="th">GBM</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">actual, decile 1 (EUR)</th>
+<td>73.68</td>
+<td>51.89</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">actual, decile 10 (EUR)</th>
+<td>344.87</td>
+<td>380.61</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">lift: decile 10 ÷ decile 1</th>
+<td>4.68</td>
+<td>7.34</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">lift: decile 10 ÷ overall</th>
+<td>2.36</td>
+<td>2.60</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">predicted ÷ actual, decile 10</th>
+<td>1.23</td>
+<td>0.98</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The GBM’s top decile costs 7.3 times its bottom decile, against 4.7 times for the GLM. Where the models differ most is the top decile: the GLM predicts 23% more than its riskiest policies actually cost, while the GBM is within 2%. The GLM’s predictions are too extreme at the top, the regression-to-the-mean pattern the <a href="../../docs/binary/calibration.html">calibration page</a> described for probabilities.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Read the intervals before reading the dips
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Each decile holds 12,871 to 20,188 policies, but only 312 to 1,496 of them have a claim, and claim sizes vary enormously. The 95% intervals are wide, so a dip such as the GBM’s 4th decile is well within noise. Don’t redesign a model to remove a wiggle that the intervals cover.</p>
+</div>
+</div>
+</section>
+<section id="the-double-lift-chart" class="level2">
+<h2 class="anchored" data-anchor-id="the-double-lift-chart">The double lift chart</h2>
+<p>Two lift charts side by side are hard to compare: both look good, and their deciles contain different policies. The <strong>double lift chart</strong> compares the two models directly, on the policies where they <strong>disagree</strong>:</p>
+<ol type="1">
+<li>put both models on the same overall level (here: rescale each so its average on the test set equals the actual average), so a difference in the overall level doesn’t look like a difference in segmentation;</li>
+<li>sort the policies by the ratio GBM ÷ GLM, and cut them into deciles of equal exposure;</li>
+<li>per decile, compare the actual average with both models’ averages.</li>
+</ol>
+<p>Decile 1 holds the policies the GBM rates much lower than the GLM, decile 10 those it rates much higher. In the middle the models agree.</p>
+<div id="28053bdd" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rebalanced <span class="op">=</span> {m: p[m] <span class="op">*</span> mean <span class="op">/</span> np.average(p[m], weights<span class="op">=</span>w) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>double <span class="op">=</span> segment_table(y, rebalanced, w, sort_by<span class="op">=</span>rebalanced[<span class="st">"GBM"</span>] <span class="op">/</span> rebalanced[<span class="st">"GLM"</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-double-lift" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>xlabel <span class="op">=</span> <span class="st">"Decile of GBM ÷ GLM (1 = GBM much lower)"</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.2</span>))</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>plot_segments(double, models, ax<span class="op">=</span>axes[<span class="dv">0</span>], xlabel<span class="op">=</span>xlabel, legend_loc<span class="op">=</span><span class="st">"upper center"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>plot_segments(double, models, ax<span class="op">=</span>axes[<span class="dv">1</span>], ratio<span class="op">=</span><span class="va">True</span>, xlabel<span class="op">=</span>xlabel)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-double-lift" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-double-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="lift-lorenz_files/figure-html/fig-double-lift-output-1.png" width="1087" height="451" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-double-lift-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Double lift chart, GBM against GLM. Left: average actual and predicted pure premium per decile of the ratio GBM ÷ GLM. Right: actual ÷ predicted for each model; 1 means the model’s average is right for that decile.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The left panel answers the question ‘who is right where they disagree?’ In decile 1, the GLM predicts 349 EUR, the GBM 182 EUR, and the actual average is 255 EUR. In decile 10, the GLM predicts 104, the GBM 226, and the actual average is 159. <strong>Neither model wins:</strong> in both tails the truth lies between them.</p>
+<p>The right panel shows the same comparison as actual ÷ predicted. The better model is the one whose curve stays <strong>flat at 1</strong>. Insurers read this as a loss ratio: if premiums were set by the GLM, actual ÷ GLM is the loss ratio each segment would produce.</p>
+<ul>
+<li><strong>Actual ÷ GLM rises</strong> from 0.73 to 1.53. The GBM finds policies the GLM overprices (left) and underprices (right).</li>
+<li><strong>Actual ÷ GBM falls</strong> from 1.40 to 0.71. The GLM finds mispricing in the GBM just as well.</li>
+</ul>
+<p>Each model knows something the other doesn’t, and each overreacts where it disagrees with the other. A curve that crosses 1 in the <em>opposite</em> direction would mean the model is worse than useless where the two differ: its deviations from the other model point the wrong way.</p>
+<section id="what-the-double-lift-chart-suggests-blend" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-double-lift-chart-suggests-blend">What the double lift chart suggests: blend</h3>
+<p>When both models are partly right, a combination usually beats either. A simple blend is the geometric mean of the two predictions (an average on the log scale, which suits multiplicative pricing models):</p>
+<div id="6a05571e" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>blend <span class="op">=</span> np.sqrt(rebalanced[<span class="st">"GLM"</span>] <span class="op">*</span> rebalanced[<span class="st">"GBM"</span>])</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>blend <span class="op">*=</span> mean <span class="op">/</span> np.average(blend, weights<span class="op">=</span>w)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-double-lift-blend" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>double_blend <span class="op">=</span> segment_table(y, {<span class="st">"Blend"</span>: blend, <span class="st">"GBM"</span>: rebalanced[<span class="st">"GBM"</span>]}, w, sort_by<span class="op">=</span>blend <span class="op">/</span> rebalanced[<span class="st">"GBM"</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_segments(double_blend, [<span class="st">"Blend"</span>, <span class="st">"GBM"</span>], ratio<span class="op">=</span><span class="va">True</span>, xlabel<span class="op">=</span><span class="st">"Decile of Blend ÷ GBM (1 = Blend much lower)"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>ax.figure.set_size_inches(<span class="dv">6</span>, <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-double-lift-blend" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-double-lift-blend-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="lift-lorenz_files/figure-html/fig-double-lift-blend-output-1.png" width="589" height="447" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-double-lift-blend-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Double lift chart, blend against GBM: actual ÷ predicted per decile of the ratio Blend ÷ GBM.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> {<span class="op">**</span>{m: p[m] <span class="cf">for</span> m <span class="kw">in</span> models}, <span class="st">"Blend"</span>: blend}</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    m: {<span class="st">"Gini"</span>: gini_index(y, s, w), <span class="st">"D²"</span>: deviance_metrics(y, s, p[<span class="st">"Null"</span>], w, TWEEDIE_POWER)[<span class="st">"D²"</span>]}</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-blend" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="10">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-blend-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Gini index and D² (Tweedie, p = 1.9) of the two models and their blend on the test set.
+</figcaption>
+<div aria-describedby="tbl-blend-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">GLM</th>
+<th data-quarto-table-cell-role="th">GBM</th>
+<th data-quarto-table-cell-role="th">Blend</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Gini</th>
+<td>0.2928</td>
+<td>0.2944</td>
+<td>0.3078</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">D²</th>
+<td>0.0127</td>
+<td>0.0134</td>
+<td>0.0147</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>Against the blend, the GBM’s actual ÷ predicted swings away from 1 at both ends, while the blend’s stays near 1 within the noise: in this pairing, the blend wins. The blend also has the highest Gini and D². Two caveats: the comparison is on the test set the double lift chart was read from, so a blend chosen this way should be confirmed on fresh data; and whether its improvement is larger than sampling noise is a question for the <a href="../../docs/comparison/model-comparison.html">model-comparison page</a>.</p>
+</section>
+</section>
+<section id="the-lorenz-curve-and-the-gini-index" class="level2">
+<h2 class="anchored" data-anchor-id="the-lorenz-curve-and-the-gini-index">The Lorenz curve and the Gini index</h2>
+<p>The lift chart shows separation decile by decile. The <strong>Lorenz curve</strong> shows it as one continuous curve:</p>
+<ol type="1">
+<li>sort the policies from the <strong>lowest</strong> to the <strong>highest</strong> prediction,</li>
+<li>walk along the sorted list and plot the <strong>share of total exposure</strong> covered so far (x-axis) against the <strong>share of total claim cost</strong> it contains (y-axis).</li>
+</ol>
+<p>A model that can’t separate risks (the Null model) gives the diagonal: the first 30% of exposure carries 30% of the claim cost. A model that separates well puts little claim cost into its low-risk policies, so its curve sags below the diagonal. The <strong>oracle</strong> sorts by the actual outcome, the best ranking possible.</p>
+<div id="cell-fig-lorenz" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_lorenz(y, {m: p[m] <span class="cf">for</span> m <span class="kw">in</span> models}, w)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ax.figure.set_size_inches(<span class="fl">5.5</span>, <span class="fl">5.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-lorenz" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lorenz-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="lift-lorenz_files/figure-html/fig-lorenz-output-1.png" width="554" height="547" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lorenz-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Lorenz curves on the test set, policies sorted from lowest to highest prediction. The dashed curve sorts by the actual outcome.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The GBM’s lowest-risk half of the exposure carries only 32% of the claim cost. The <strong>Gini index</strong> condenses the curve into one number: twice the area between the diagonal and the curve,</p>
+<p><span class="math display">\[
+\text{Gini} = 1 - 2 \int_0^1 L(x)\,dx,
+\]</span></p>
+<p>where <span class="math inline">\(L(x)\)</span> is the share of claim cost in the lowest-predicted share <span class="math inline">\(x\)</span> of the exposure. It is 0 for the Null model and grows the better the model ranks the policies. The two models score 0.293 (GLM) and 0.294 (GBM), a relative difference of 0.6%. On D² the GBM was 6% ahead, and its top-to-bottom lift was much larger. The Gini weighs the whole ranking, while the lift ratio looks only at the two extreme deciles, each resting on a few hundred claims. A single decile ratio is a much noisier summary than the Gini.</p>
+<p>The oracle’s Gini of 0.984 is not a realistic target: 95% of the exposure had no claim at all, and only hindsight can put those policies first. Some authors report a <strong>normalized Gini</strong> (Gini ÷ oracle Gini), but the oracle mostly reflects how many policies happened to have no claims, so it adds little here.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Relation to the classification Gini
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The <a href="../../docs/binary/roc-auc.html">ROC page</a> defined Gini = 2·AUC − 1 for a binary target. For a 0/1 outcome with equal weights, the Lorenz Gini equals <span class="math inline">\((1 - \pi)(2 \cdot \text{AUC} - 1)\)</span>, where <span class="math inline">\(\pi\)</span> is the share of positives (the tests in <code>tests/</code> check this). The factor <span class="math inline">\(1 - \pi\)</span> is the oracle’s Gini: dividing by it gives the normalized Gini, which equals 2·AUC − 1. Both measure how well the model ranks. The Lorenz version extends the idea to outcomes that aren’t 0/1, such as claim cost, and to weighted observations.</p>
+</div>
+</div>
+<section id="what-the-gini-cant-see" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-gini-cant-see">What the Gini can’t see</h3>
+<p>The Gini depends <strong>only on the ranking</strong>. Any transformation that keeps the order of the predictions leaves it unchanged, however wrong the predictions become:</p>
+<div class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>squared <span class="op">=</span> p[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="dv">2</span> <span class="op">*</span> np.average(p[<span class="st">"GBM"</span>], weights<span class="op">=</span>w) <span class="op">/</span> np.average(p[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="dv">2</span>, weights<span class="op">=</span>w)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>variants <span class="op">=</span> {<span class="st">"GBM"</span>: p[<span class="st">"GBM"</span>], <span class="st">"2 × GBM"</span>: <span class="dv">2</span> <span class="op">*</span> p[<span class="st">"GBM"</span>], <span class="st">"GBM squared"</span>: squared}</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    name: {</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Gini"</span>: gini_index(y, s, w),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"D²"</span>: deviance_metrics(y, s, p[<span class="st">"Null"</span>], w, TWEEDIE_POWER)[<span class="st">"D²"</span>],</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"bias (EUR)"</span>: regression_metrics(y, s, w)[<span class="st">"bias"</span>],</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, s <span class="kw">in</span> variants.items()</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-gini-blind" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="13">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-gini-blind-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Three versions of the GBM with identical rankings. ‘Squared’ is GBM², rescaled to the same average, so its overall level is right but its spread is far too wide.
+</figcaption>
+<div aria-describedby="tbl-gini-blind-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">GBM</th>
+<th data-quarto-table-cell-role="th">2 × GBM</th>
+<th data-quarto-table-cell-role="th">GBM squared</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Gini</th>
+<td>0.2944</td>
+<td>0.2944</td>
+<td>0.2944</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">D²</th>
+<td>0.0134</td>
+<td>-0.0050</td>
+<td>-0.0186</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">bias (EUR)</th>
+<td>-3.6890</td>
+<td>138.9580</td>
+<td>-3.6890</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>Doubling every prediction, or squaring them, keeps the Gini exactly the same. D² drops below 0 (worse than predicting the average for everyone), and a lift chart would show the gap at once. So:</p>
+<ul>
+<li><strong>Never use the Gini alone.</strong> Pair it with a lift chart or a calibration check, and with the deviance.</li>
+<li><strong>Don’t compare Ginis across portfolios or years.</strong> Like AUC, the Gini depends on how heterogeneous the population is: a portfolio with more varied risks gives a higher Gini for an equally good model.</li>
+<li><strong>Small differences are noise.</strong> The GLM and GBM differ by 0.002, far less than the test-set variability of a Gini on data this noisy. Testing such differences is the subject of the <a href="../../docs/comparison/model-comparison.html">model-comparison page</a>.</li>
+</ul>
+</section>
+</section>
+<section id="which-tool-for-which-question" class="level2">
+<h2 class="anchored" data-anchor-id="which-tool-for-which-question">Which tool for which question</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>Answers</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Lift chart</td>
+<td>Does cost rise with the prediction, and does the prediction match per segment?</td>
+<td>noisy deciles: read the intervals</td>
+</tr>
+<tr class="even">
+<td>Double lift chart</td>
+<td>Where two models disagree, which is right?</td>
+<td>rebalance both models to the same level first</td>
+</tr>
+<tr class="odd">
+<td>Lorenz curve / Gini</td>
+<td>How well does the model rank risks, in one number?</td>
+<td>blind to calibration and level; not comparable across portfolios</td>
+</tr>
+<tr class="even">
+<td>Deviance / D²</td>
+<td>How good are the individual predictions, ranking and level together?</td>
+<td>small values are normal; hard to interpret alone</td>
+</tr>
+</tbody>
+</table>
+<p>The tools complement each other: the Gini and the lift spread measure <strong>ranking</strong>, the agreement in the lift chart measures <strong>calibration by segment</strong>, the double lift chart <strong>compares</strong> two candidate models, and the deviance checks both ranking and level at once.</p>
+</section>
+<section id="takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="takeaways">Takeaways</h2>
+<ul>
+<li>With noisy outcomes, judge a pricing model on <strong>groups</strong>: deciles of equal exposure average away the noise that dominates individual-level metrics.</li>
+<li>A <strong>lift chart</strong> should rise monotonically, be steep, and have predictions that run through the actual points. Here the GLM overpredicts its top decile by 23%.</li>
+<li>A <strong>double lift chart</strong> compares two models where they disagree. Here each model finds mispricing in the other, and a simple <strong>blend</strong> beats both.</li>
+<li>The <strong>Gini index</strong> summarizes the Lorenz curve: 0.293 (GLM) against 0.294 (GBM). It measures ranking only, so a badly miscalibrated model can have the same Gini as a good one.</li>
+</ul>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Lift charts and Lorenz curves"</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Does the model separate low risks from high risks? Lift charts, double lift charts, Lorenz curves and the Gini index for pure premium."</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.metrics <span class="im">import</span> deviance_metrics, exposure_bins, gini_index, lorenz_curve, regression_metrics, segment_table</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.models <span class="im">import</span> TWEEDIE_POWER, pure_premium_predictions</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.plots <span class="im">import</span> plot_lorenz, plot_segments, use_style</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>use_style()</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> pure_premium_predictions()</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>y, w <span class="op">=</span> p[<span class="st">"y"</span>], p[<span class="st">"w"</span>]</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>models <span class="op">=</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>mean <span class="op">=</span> np.average(y, weights<span class="op">=</span>w)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>gini <span class="op">=</span> {m: gini_index(y, p[m], w) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>d2 <span class="op">=</span> {m: deviance_metrics(y, p[m], p[<span class="st">"Null"</span>], w, TWEEDIE_POWER)[<span class="st">"D²"</span>] <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>**Question answered:** does the model separate low risks from high risks, and</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>is its prediction right for each risk segment?</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">deviance page</span><span class="co">](deviance.qmd)</span> ended with D² values of about</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{d2['GBM']:.1%}"`</span>: individual claims are mostly chance, so any</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>average over individual errors is small. A pricing model is judged on</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>something else: whether the policies it calls expensive really cost more, *as a</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>group*, than the ones it calls cheap. Grouping averages away the noise. This</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>page covers the standard tools for that:</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **lift chart**: actual against predicted, by decile of the prediction;</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **double lift chart**: two models compared where they disagree;</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>the **Lorenz curve** and the **Gini index**: one number for how well a</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>  model separates risks.</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="fu">## The lift chart</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>To draw a lift chart (also called a *quantile plot*):</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>sort the test policies by their predicted pure premium,</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>cut them into 10 groups (**deciles**) holding the same total exposure,</span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>per decile, compare the exposure-weighted **average prediction** with the</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>   **average actual** pure premium.</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>The deciles hold equal *exposure* rather than equal numbers of policies,</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>because pure premium is a rate per policy-year: a decile full of short policies</span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>would hold far less information than its policy count suggests.</span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-lift</span></span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Lift charts on the test set: average actual and predicted pure premium per decile of each model's prediction (deciles of equal exposure). Bars are 95% intervals for the actual average."</span></span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>lift <span class="op">=</span> {m: segment_table(y, {m: p[m]}, w, sort_by<span class="op">=</span>p[m]) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.2</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, models):</span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>    plot_segments(lift[m], [m], ax<span class="op">=</span>ax, xlabel<span class="op">=</span><span class="ss">f"Decile of </span><span class="sc">{</span>m<span class="sc">}</span><span class="ss"> prediction (1 = lowest)"</span>, title<span class="op">=</span>m)</span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_ylabel(<span class="st">""</span>)</span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>A good lift chart shows three things:</span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Monotonicity.** Actual cost should rise from decile to decile. Both models</span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>  get there broadly, with a few dips in the middle.</span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Spread.** The steeper the actual curve, the better the model separates risks.</span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>  The ratio of the top to the bottom decile is a common summary (the</span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>  'lift' that gives the chart its name).</span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Agreement.** The predicted line should run through the actual points. A</span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>  gap shows the predictions are off for that segment even when the overall</span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>  average is right: calibration, checked by group.</span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-lift</span></span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Summaries of the lift charts. Lift is the top decile's actual average divided by the bottom decile's (or by the overall average)."</span></span>
+<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a>    m: {</span>
+<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">"actual, decile 1 (EUR)"</span>: t.loc[<span class="dv">1</span>, <span class="st">"actual"</span>],</span>
+<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a>        <span class="st">"actual, decile 10 (EUR)"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>],</span>
+<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lift: decile 10 ÷ decile 1"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="op">/</span> t.loc[<span class="dv">1</span>, <span class="st">"actual"</span>],</span>
+<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lift: decile 10 ÷ overall"</span>: t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="op">/</span> mean,</span>
+<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>        <span class="st">"predicted ÷ actual, decile 10"</span>: t.loc[<span class="dv">10</span>, m] <span class="op">/</span> t.loc[<span class="dv">10</span>, <span class="st">"actual"</span>],</span>
+<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> m, t <span class="kw">in</span> lift.items()</span>
+<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-95"><a href="#cb10-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-98"><a href="#cb10-98" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-99"><a href="#cb10-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-100"><a href="#cb10-100" aria-hidden="true" tabindex="-1"></a>top_ratio <span class="op">=</span> {m: lift[m].loc[<span class="dv">10</span>, m] <span class="op">/</span> lift[m].loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-101"><a href="#cb10-101" aria-hidden="true" tabindex="-1"></a>spread <span class="op">=</span> {m: lift[m].loc[<span class="dv">10</span>, <span class="st">"actual"</span>] <span class="op">/</span> lift[m].loc[<span class="dv">1</span>, <span class="st">"actual"</span>] <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-102"><a href="#cb10-102" aria-hidden="true" tabindex="-1"></a>decile <span class="op">=</span> exposure_bins(p[<span class="st">"GBM"</span>], w)</span>
+<span id="cb10-103"><a href="#cb10-103" aria-hidden="true" tabindex="-1"></a>policies_per_decile <span class="op">=</span> np.bincount(decile)</span>
+<span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a>claims_per_decile <span class="op">=</span> np.bincount(decile, weights<span class="op">=</span>y <span class="op">&gt;</span> <span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
+<span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>The GBM's top decile costs <span class="in">`{python} f"{spread['GBM']:.1f}"`</span> times its bottom</span>
+<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>decile, against <span class="in">`{python} f"{spread['GLM']:.1f}"`</span> times for the GLM. Where the</span>
+<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a>models differ most is the top decile: the GLM predicts</span>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{top_ratio['GLM'] - 1:.0%}"`</span> more than its riskiest policies</span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a>actually cost, while the GBM is within <span class="in">`{python} f"{abs(top_ratio['GBM'] - 1):.0%}"`</span>.</span>
+<span id="cb10-112"><a href="#cb10-112" aria-hidden="true" tabindex="-1"></a>The GLM's predictions are too extreme at the top, the regression-to-the-mean</span>
+<span id="cb10-113"><a href="#cb10-113" aria-hidden="true" tabindex="-1"></a>pattern the <span class="co">[</span><span class="ot">calibration page</span><span class="co">](../binary/calibration.qmd)</span> described for</span>
+<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a>probabilities.</span>
+<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a><span class="fu">## Read the intervals before reading the dips</span></span>
+<span id="cb10-118"><a href="#cb10-118" aria-hidden="true" tabindex="-1"></a>Each decile holds <span class="in">`{python} f"{policies_per_decile.min():,}"`</span> to</span>
+<span id="cb10-119"><a href="#cb10-119" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{policies_per_decile.max():,}"`</span> policies, but only</span>
+<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{claims_per_decile.min():,}"`</span> to <span class="in">`{python} f"{claims_per_decile.max():,}"`</span></span>
+<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a>of them have a claim, and claim sizes vary enormously. The 95% intervals are</span>
+<span id="cb10-122"><a href="#cb10-122" aria-hidden="true" tabindex="-1"></a>wide, so a dip such as the GBM's 4th decile is well within noise. Don't</span>
+<span id="cb10-123"><a href="#cb10-123" aria-hidden="true" tabindex="-1"></a>redesign a model to remove a wiggle that the intervals cover.</span>
+<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a><span class="fu">## The double lift chart</span></span>
+<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a>Two lift charts side by side are hard to compare: both look good, and their</span>
+<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a>deciles contain different policies. The **double lift chart** compares the two</span>
+<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a>models directly, on the policies where they **disagree**:</span>
+<span id="cb10-131"><a href="#cb10-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-132"><a href="#cb10-132" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>put both models on the same overall level (here: rescale each so its</span>
+<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a>   average on the test set equals the actual average), so a difference in the</span>
+<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a>   overall level doesn't look like a difference in segmentation;</span>
+<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>sort the policies by the ratio GBM ÷ GLM, and cut them into deciles of equal</span>
+<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a>   exposure;</span>
+<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>per decile, compare the actual average with both models' averages.</span>
+<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a>Decile 1 holds the policies the GBM rates much lower than the GLM, decile 10</span>
+<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a>those it rates much higher. In the middle the models agree.</span>
+<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-144"><a href="#cb10-144" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-145"><a href="#cb10-145" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-146"><a href="#cb10-146" aria-hidden="true" tabindex="-1"></a>rebalanced <span class="op">=</span> {m: p[m] <span class="op">*</span> mean <span class="op">/</span> np.average(p[m], weights<span class="op">=</span>w) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb10-147"><a href="#cb10-147" aria-hidden="true" tabindex="-1"></a>double <span class="op">=</span> segment_table(y, rebalanced, w, sort_by<span class="op">=</span>rebalanced[<span class="st">"GBM"</span>] <span class="op">/</span> rebalanced[<span class="st">"GLM"</span>])</span>
+<span id="cb10-148"><a href="#cb10-148" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-149"><a href="#cb10-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-152"><a href="#cb10-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-153"><a href="#cb10-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-double-lift</span></span>
+<span id="cb10-154"><a href="#cb10-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Double lift chart, GBM against GLM. Left: average actual and predicted pure premium per decile of the ratio GBM ÷ GLM. Right: actual ÷ predicted for each model; 1 means the model's average is right for that decile."</span></span>
+<span id="cb10-155"><a href="#cb10-155" aria-hidden="true" tabindex="-1"></a>xlabel <span class="op">=</span> <span class="st">"Decile of GBM ÷ GLM (1 = GBM much lower)"</span></span>
+<span id="cb10-156"><a href="#cb10-156" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.2</span>))</span>
+<span id="cb10-157"><a href="#cb10-157" aria-hidden="true" tabindex="-1"></a>plot_segments(double, models, ax<span class="op">=</span>axes[<span class="dv">0</span>], xlabel<span class="op">=</span>xlabel, legend_loc<span class="op">=</span><span class="st">"upper center"</span>)</span>
+<span id="cb10-158"><a href="#cb10-158" aria-hidden="true" tabindex="-1"></a>plot_segments(double, models, ax<span class="op">=</span>axes[<span class="dv">1</span>], ratio<span class="op">=</span><span class="va">True</span>, xlabel<span class="op">=</span>xlabel)</span>
+<span id="cb10-159"><a href="#cb10-159" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb10-160"><a href="#cb10-160" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-161"><a href="#cb10-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-164"><a href="#cb10-164" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-165"><a href="#cb10-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-166"><a href="#cb10-166" aria-hidden="true" tabindex="-1"></a>d1, d10 <span class="op">=</span> double.loc[<span class="dv">1</span>], double.loc[<span class="dv">10</span>]</span>
+<span id="cb10-167"><a href="#cb10-167" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-168"><a href="#cb10-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-169"><a href="#cb10-169" aria-hidden="true" tabindex="-1"></a>The left panel answers the question 'who is right where they disagree?' In</span>
+<span id="cb10-170"><a href="#cb10-170" aria-hidden="true" tabindex="-1"></a>decile 1, the GLM predicts <span class="in">`{python} f"{d1['GLM']:.0f}"`</span> EUR, the GBM</span>
+<span id="cb10-171"><a href="#cb10-171" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{d1['GBM']:.0f}"`</span> EUR, and the actual average is</span>
+<span id="cb10-172"><a href="#cb10-172" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{d1['actual']:.0f}"`</span> EUR. In decile 10, the GLM predicts</span>
+<span id="cb10-173"><a href="#cb10-173" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{d10['GLM']:.0f}"`</span>, the GBM <span class="in">`{python} f"{d10['GBM']:.0f}"`</span>, and the</span>
+<span id="cb10-174"><a href="#cb10-174" aria-hidden="true" tabindex="-1"></a>actual average is <span class="in">`{python} f"{d10['actual']:.0f}"`</span>. **Neither model wins:** in</span>
+<span id="cb10-175"><a href="#cb10-175" aria-hidden="true" tabindex="-1"></a>both tails the truth lies between them.</span>
+<span id="cb10-176"><a href="#cb10-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-177"><a href="#cb10-177" aria-hidden="true" tabindex="-1"></a>The right panel shows the same comparison as actual ÷ predicted. The better</span>
+<span id="cb10-178"><a href="#cb10-178" aria-hidden="true" tabindex="-1"></a>model is the one whose curve stays **flat at 1**. Insurers read this as a loss</span>
+<span id="cb10-179"><a href="#cb10-179" aria-hidden="true" tabindex="-1"></a>ratio: if premiums were set by the GLM, actual ÷ GLM is the loss ratio each</span>
+<span id="cb10-180"><a href="#cb10-180" aria-hidden="true" tabindex="-1"></a>segment would produce.</span>
+<span id="cb10-181"><a href="#cb10-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-182"><a href="#cb10-182" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Actual ÷ GLM rises** from <span class="in">`{python} f"{d1['actual'] / d1['GLM']:.2f}"`</span> to</span>
+<span id="cb10-183"><a href="#cb10-183" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{d10['actual'] / d10['GLM']:.2f}"`</span>. The GBM finds policies the</span>
+<span id="cb10-184"><a href="#cb10-184" aria-hidden="true" tabindex="-1"></a>  GLM overprices (left) and underprices (right).</span>
+<span id="cb10-185"><a href="#cb10-185" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Actual ÷ GBM falls** from <span class="in">`{python} f"{d1['actual'] / d1['GBM']:.2f}"`</span> to</span>
+<span id="cb10-186"><a href="#cb10-186" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{d10['actual'] / d10['GBM']:.2f}"`</span>. The GLM finds mispricing in the</span>
+<span id="cb10-187"><a href="#cb10-187" aria-hidden="true" tabindex="-1"></a>  GBM just as well.</span>
+<span id="cb10-188"><a href="#cb10-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-189"><a href="#cb10-189" aria-hidden="true" tabindex="-1"></a>Each model knows something the other doesn't, and each overreacts where it</span>
+<span id="cb10-190"><a href="#cb10-190" aria-hidden="true" tabindex="-1"></a>disagrees with the other. A curve that crosses 1 in the *opposite* direction</span>
+<span id="cb10-191"><a href="#cb10-191" aria-hidden="true" tabindex="-1"></a>would mean the model is worse than useless where the two differ: its</span>
+<span id="cb10-192"><a href="#cb10-192" aria-hidden="true" tabindex="-1"></a>deviations from the other model point the wrong way.</span>
+<span id="cb10-193"><a href="#cb10-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-194"><a href="#cb10-194" aria-hidden="true" tabindex="-1"></a><span class="fu">### What the double lift chart suggests: blend</span></span>
+<span id="cb10-195"><a href="#cb10-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-196"><a href="#cb10-196" aria-hidden="true" tabindex="-1"></a>When both models are partly right, a combination usually beats either. A</span>
+<span id="cb10-197"><a href="#cb10-197" aria-hidden="true" tabindex="-1"></a>simple blend is the geometric mean of the two predictions (an average on the</span>
+<span id="cb10-198"><a href="#cb10-198" aria-hidden="true" tabindex="-1"></a>log scale, which suits multiplicative pricing models):</span>
+<span id="cb10-199"><a href="#cb10-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-202"><a href="#cb10-202" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-203"><a href="#cb10-203" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-204"><a href="#cb10-204" aria-hidden="true" tabindex="-1"></a>blend <span class="op">=</span> np.sqrt(rebalanced[<span class="st">"GLM"</span>] <span class="op">*</span> rebalanced[<span class="st">"GBM"</span>])</span>
+<span id="cb10-205"><a href="#cb10-205" aria-hidden="true" tabindex="-1"></a>blend <span class="op">*=</span> mean <span class="op">/</span> np.average(blend, weights<span class="op">=</span>w)</span>
+<span id="cb10-206"><a href="#cb10-206" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-207"><a href="#cb10-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-210"><a href="#cb10-210" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-211"><a href="#cb10-211" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-double-lift-blend</span></span>
+<span id="cb10-212"><a href="#cb10-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Double lift chart, blend against GBM: actual ÷ predicted per decile of the ratio Blend ÷ GBM."</span></span>
+<span id="cb10-213"><a href="#cb10-213" aria-hidden="true" tabindex="-1"></a>double_blend <span class="op">=</span> segment_table(y, {<span class="st">"Blend"</span>: blend, <span class="st">"GBM"</span>: rebalanced[<span class="st">"GBM"</span>]}, w, sort_by<span class="op">=</span>blend <span class="op">/</span> rebalanced[<span class="st">"GBM"</span>])</span>
+<span id="cb10-214"><a href="#cb10-214" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_segments(double_blend, [<span class="st">"Blend"</span>, <span class="st">"GBM"</span>], ratio<span class="op">=</span><span class="va">True</span>, xlabel<span class="op">=</span><span class="st">"Decile of Blend ÷ GBM (1 = Blend much lower)"</span>)</span>
+<span id="cb10-215"><a href="#cb10-215" aria-hidden="true" tabindex="-1"></a>ax.figure.set_size_inches(<span class="dv">6</span>, <span class="dv">4</span>)</span>
+<span id="cb10-216"><a href="#cb10-216" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-217"><a href="#cb10-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-220"><a href="#cb10-220" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-221"><a href="#cb10-221" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-blend</span></span>
+<span id="cb10-222"><a href="#cb10-222" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Gini index and D² (Tweedie, p = 1.9) of the two models and their blend on the test set."</span></span>
+<span id="cb10-223"><a href="#cb10-223" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-224"><a href="#cb10-224" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> {<span class="op">**</span>{m: p[m] <span class="cf">for</span> m <span class="kw">in</span> models}, <span class="st">"Blend"</span>: blend}</span>
+<span id="cb10-225"><a href="#cb10-225" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb10-226"><a href="#cb10-226" aria-hidden="true" tabindex="-1"></a>    m: {<span class="st">"Gini"</span>: gini_index(y, s, w), <span class="st">"D²"</span>: deviance_metrics(y, s, p[<span class="st">"Null"</span>], w, TWEEDIE_POWER)[<span class="st">"D²"</span>]}</span>
+<span id="cb10-227"><a href="#cb10-227" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> m, s <span class="kw">in</span> scores.items()</span>
+<span id="cb10-228"><a href="#cb10-228" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span>
+<span id="cb10-229"><a href="#cb10-229" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-230"><a href="#cb10-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-231"><a href="#cb10-231" aria-hidden="true" tabindex="-1"></a>Against the blend, the GBM's actual ÷ predicted swings away from 1 at both ends,</span>
+<span id="cb10-232"><a href="#cb10-232" aria-hidden="true" tabindex="-1"></a>while the blend's stays near 1 within the noise: in this pairing, the blend</span>
+<span id="cb10-233"><a href="#cb10-233" aria-hidden="true" tabindex="-1"></a>wins. The blend also has the highest Gini and D². Two caveats: the comparison</span>
+<span id="cb10-234"><a href="#cb10-234" aria-hidden="true" tabindex="-1"></a>is on the test set the double lift chart was read from, so a blend chosen this</span>
+<span id="cb10-235"><a href="#cb10-235" aria-hidden="true" tabindex="-1"></a>way should be confirmed on fresh data; and whether its improvement is larger</span>
+<span id="cb10-236"><a href="#cb10-236" aria-hidden="true" tabindex="-1"></a>than sampling noise is a question for the <span class="co">[</span><span class="ot">model-comparison page</span><span class="co">](../comparison/model-comparison.qmd)</span>.</span>
+<span id="cb10-237"><a href="#cb10-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-238"><a href="#cb10-238" aria-hidden="true" tabindex="-1"></a><span class="fu">## The Lorenz curve and the Gini index</span></span>
+<span id="cb10-239"><a href="#cb10-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-240"><a href="#cb10-240" aria-hidden="true" tabindex="-1"></a>The lift chart shows separation decile by decile. The **Lorenz curve** shows it</span>
+<span id="cb10-241"><a href="#cb10-241" aria-hidden="true" tabindex="-1"></a>as one continuous curve:</span>
+<span id="cb10-242"><a href="#cb10-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-243"><a href="#cb10-243" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>sort the policies from the **lowest** to the **highest** prediction,</span>
+<span id="cb10-244"><a href="#cb10-244" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>walk along the sorted list and plot the **share of total exposure** covered</span>
+<span id="cb10-245"><a href="#cb10-245" aria-hidden="true" tabindex="-1"></a>   so far (x-axis) against the **share of total claim cost** it contains</span>
+<span id="cb10-246"><a href="#cb10-246" aria-hidden="true" tabindex="-1"></a>   (y-axis).</span>
+<span id="cb10-247"><a href="#cb10-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-248"><a href="#cb10-248" aria-hidden="true" tabindex="-1"></a>A model that can't separate risks (the Null model) gives the diagonal: the</span>
+<span id="cb10-249"><a href="#cb10-249" aria-hidden="true" tabindex="-1"></a>first 30% of exposure carries 30% of the claim cost. A model that separates</span>
+<span id="cb10-250"><a href="#cb10-250" aria-hidden="true" tabindex="-1"></a>well puts little claim cost into its low-risk policies, so its curve sags</span>
+<span id="cb10-251"><a href="#cb10-251" aria-hidden="true" tabindex="-1"></a>below the diagonal. The **oracle** sorts by the actual outcome, the best</span>
+<span id="cb10-252"><a href="#cb10-252" aria-hidden="true" tabindex="-1"></a>ranking possible.</span>
+<span id="cb10-253"><a href="#cb10-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-256"><a href="#cb10-256" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-257"><a href="#cb10-257" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-lorenz</span></span>
+<span id="cb10-258"><a href="#cb10-258" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Lorenz curves on the test set, policies sorted from lowest to highest prediction. The dashed curve sorts by the actual outcome."</span></span>
+<span id="cb10-259"><a href="#cb10-259" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_lorenz(y, {m: p[m] <span class="cf">for</span> m <span class="kw">in</span> models}, w)</span>
+<span id="cb10-260"><a href="#cb10-260" aria-hidden="true" tabindex="-1"></a>ax.figure.set_size_inches(<span class="fl">5.5</span>, <span class="fl">5.5</span>)</span>
+<span id="cb10-261"><a href="#cb10-261" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-262"><a href="#cb10-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-265"><a href="#cb10-265" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-266"><a href="#cb10-266" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb10-267"><a href="#cb10-267" aria-hidden="true" tabindex="-1"></a>lc <span class="op">=</span> lorenz_curve(y, p[<span class="st">"GBM"</span>], w)</span>
+<span id="cb10-268"><a href="#cb10-268" aria-hidden="true" tabindex="-1"></a>half <span class="op">=</span> np.interp(<span class="fl">0.5</span>, lc[<span class="st">"exposure_share"</span>], lc[<span class="st">"loss_share"</span>])</span>
+<span id="cb10-269"><a href="#cb10-269" aria-hidden="true" tabindex="-1"></a>oracle <span class="op">=</span> gini_index(y, y, w)</span>
+<span id="cb10-270"><a href="#cb10-270" aria-hidden="true" tabindex="-1"></a>zero_share <span class="op">=</span> np.average(y <span class="op">==</span> <span class="dv">0</span>, weights<span class="op">=</span>w)</span>
+<span id="cb10-271"><a href="#cb10-271" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-272"><a href="#cb10-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-273"><a href="#cb10-273" aria-hidden="true" tabindex="-1"></a>The GBM's lowest-risk half of the exposure carries only</span>
+<span id="cb10-274"><a href="#cb10-274" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{half:.0%}"`</span> of the claim cost. The **Gini index** condenses the</span>
+<span id="cb10-275"><a href="#cb10-275" aria-hidden="true" tabindex="-1"></a>curve into one number: twice the area between the diagonal and the curve,</span>
+<span id="cb10-276"><a href="#cb10-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-277"><a href="#cb10-277" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-278"><a href="#cb10-278" aria-hidden="true" tabindex="-1"></a>\text{Gini} = 1 - 2 \int_0^1 L(x)\,dx,</span>
+<span id="cb10-279"><a href="#cb10-279" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb10-280"><a href="#cb10-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-281"><a href="#cb10-281" aria-hidden="true" tabindex="-1"></a>where $L(x)$ is the share of claim cost in the lowest-predicted share $x$ of</span>
+<span id="cb10-282"><a href="#cb10-282" aria-hidden="true" tabindex="-1"></a>the exposure. It is 0 for the Null model and grows the better the model ranks</span>
+<span id="cb10-283"><a href="#cb10-283" aria-hidden="true" tabindex="-1"></a>the policies. The two models score <span class="in">`{python} f"{gini['GLM']:.3f}"`</span> (GLM) and</span>
+<span id="cb10-284"><a href="#cb10-284" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{gini['GBM']:.3f}"`</span> (GBM), a relative difference of</span>
+<span id="cb10-285"><a href="#cb10-285" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{gini['GBM'] / gini['GLM'] - 1:.1%}"`</span>. On D² the GBM was</span>
+<span id="cb10-286"><a href="#cb10-286" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{d2['GBM'] / d2['GLM'] - 1:.0%}"`</span> ahead, and its top-to-bottom</span>
+<span id="cb10-287"><a href="#cb10-287" aria-hidden="true" tabindex="-1"></a>lift was much larger. The Gini weighs the whole ranking, while the lift ratio</span>
+<span id="cb10-288"><a href="#cb10-288" aria-hidden="true" tabindex="-1"></a>looks only at the two extreme deciles, each resting on a few hundred claims. A</span>
+<span id="cb10-289"><a href="#cb10-289" aria-hidden="true" tabindex="-1"></a>single decile ratio is a much noisier summary than the Gini.</span>
+<span id="cb10-290"><a href="#cb10-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-291"><a href="#cb10-291" aria-hidden="true" tabindex="-1"></a>The oracle's Gini of <span class="in">`{python} f"{oracle:.3f}"`</span> is not a realistic target:</span>
+<span id="cb10-292"><a href="#cb10-292" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{zero_share:.0%}"`</span> of the exposure had no claim at all, and only</span>
+<span id="cb10-293"><a href="#cb10-293" aria-hidden="true" tabindex="-1"></a>hindsight can put those policies first. Some authors report a **normalized</span>
+<span id="cb10-294"><a href="#cb10-294" aria-hidden="true" tabindex="-1"></a>Gini** (Gini ÷ oracle Gini), but the oracle mostly reflects how many policies</span>
+<span id="cb10-295"><a href="#cb10-295" aria-hidden="true" tabindex="-1"></a>happened to have no claims, so it adds little here.</span>
+<span id="cb10-296"><a href="#cb10-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-297"><a href="#cb10-297" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb10-298"><a href="#cb10-298" aria-hidden="true" tabindex="-1"></a><span class="fu">## Relation to the classification Gini</span></span>
+<span id="cb10-299"><a href="#cb10-299" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">ROC page</span><span class="co">](../binary/roc-auc.qmd)</span> defined Gini = 2·AUC − 1 for a binary</span>
+<span id="cb10-300"><a href="#cb10-300" aria-hidden="true" tabindex="-1"></a>target. For a 0/1 outcome with equal weights, the Lorenz Gini equals</span>
+<span id="cb10-301"><a href="#cb10-301" aria-hidden="true" tabindex="-1"></a>$(1 - \pi)(2 \cdot \text{AUC} - 1)$, where $\pi$ is the share of positives</span>
+<span id="cb10-302"><a href="#cb10-302" aria-hidden="true" tabindex="-1"></a>(the tests in <span class="in">`tests/`</span> check this). The factor $1 - \pi$ is the oracle's Gini:</span>
+<span id="cb10-303"><a href="#cb10-303" aria-hidden="true" tabindex="-1"></a>dividing by it gives the normalized Gini, which equals 2·AUC − 1. Both measure</span>
+<span id="cb10-304"><a href="#cb10-304" aria-hidden="true" tabindex="-1"></a>how well the model ranks. The Lorenz version extends the idea to outcomes that</span>
+<span id="cb10-305"><a href="#cb10-305" aria-hidden="true" tabindex="-1"></a>aren't 0/1, such as claim cost, and to weighted observations.</span>
+<span id="cb10-306"><a href="#cb10-306" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb10-307"><a href="#cb10-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-308"><a href="#cb10-308" aria-hidden="true" tabindex="-1"></a><span class="fu">### What the Gini can't see</span></span>
+<span id="cb10-309"><a href="#cb10-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-310"><a href="#cb10-310" aria-hidden="true" tabindex="-1"></a>The Gini depends **only on the ranking**. Any transformation that keeps the</span>
+<span id="cb10-311"><a href="#cb10-311" aria-hidden="true" tabindex="-1"></a>order of the predictions leaves it unchanged, however wrong the predictions</span>
+<span id="cb10-312"><a href="#cb10-312" aria-hidden="true" tabindex="-1"></a>become:</span>
+<span id="cb10-313"><a href="#cb10-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-316"><a href="#cb10-316" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb10-317"><a href="#cb10-317" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-gini-blind</span></span>
+<span id="cb10-318"><a href="#cb10-318" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Three versions of the GBM with identical rankings. 'Squared' is GBM², rescaled to the same average, so its overall level is right but its spread is far too wide."</span></span>
+<span id="cb10-319"><a href="#cb10-319" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb10-320"><a href="#cb10-320" aria-hidden="true" tabindex="-1"></a>squared <span class="op">=</span> p[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="dv">2</span> <span class="op">*</span> np.average(p[<span class="st">"GBM"</span>], weights<span class="op">=</span>w) <span class="op">/</span> np.average(p[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="dv">2</span>, weights<span class="op">=</span>w)</span>
+<span id="cb10-321"><a href="#cb10-321" aria-hidden="true" tabindex="-1"></a>variants <span class="op">=</span> {<span class="st">"GBM"</span>: p[<span class="st">"GBM"</span>], <span class="st">"2 × GBM"</span>: <span class="dv">2</span> <span class="op">*</span> p[<span class="st">"GBM"</span>], <span class="st">"GBM squared"</span>: squared}</span>
+<span id="cb10-322"><a href="#cb10-322" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb10-323"><a href="#cb10-323" aria-hidden="true" tabindex="-1"></a>    name: {</span>
+<span id="cb10-324"><a href="#cb10-324" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Gini"</span>: gini_index(y, s, w),</span>
+<span id="cb10-325"><a href="#cb10-325" aria-hidden="true" tabindex="-1"></a>        <span class="st">"D²"</span>: deviance_metrics(y, s, p[<span class="st">"Null"</span>], w, TWEEDIE_POWER)[<span class="st">"D²"</span>],</span>
+<span id="cb10-326"><a href="#cb10-326" aria-hidden="true" tabindex="-1"></a>        <span class="st">"bias (EUR)"</span>: regression_metrics(y, s, w)[<span class="st">"bias"</span>],</span>
+<span id="cb10-327"><a href="#cb10-327" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-328"><a href="#cb10-328" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, s <span class="kw">in</span> variants.items()</span>
+<span id="cb10-329"><a href="#cb10-329" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span>
+<span id="cb10-330"><a href="#cb10-330" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-331"><a href="#cb10-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-332"><a href="#cb10-332" aria-hidden="true" tabindex="-1"></a>Doubling every prediction, or squaring them, keeps the Gini exactly the same.</span>
+<span id="cb10-333"><a href="#cb10-333" aria-hidden="true" tabindex="-1"></a>D² drops below 0 (worse than predicting the average for everyone), and a lift</span>
+<span id="cb10-334"><a href="#cb10-334" aria-hidden="true" tabindex="-1"></a>chart would show the gap at once. So:</span>
+<span id="cb10-335"><a href="#cb10-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-336"><a href="#cb10-336" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Never use the Gini alone.** Pair it with a lift chart or a calibration</span>
+<span id="cb10-337"><a href="#cb10-337" aria-hidden="true" tabindex="-1"></a>  check, and with the deviance.</span>
+<span id="cb10-338"><a href="#cb10-338" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Don't compare Ginis across portfolios or years.** Like AUC, the Gini</span>
+<span id="cb10-339"><a href="#cb10-339" aria-hidden="true" tabindex="-1"></a>  depends on how heterogeneous the population is: a portfolio with more varied</span>
+<span id="cb10-340"><a href="#cb10-340" aria-hidden="true" tabindex="-1"></a>  risks gives a higher Gini for an equally good model.</span>
+<span id="cb10-341"><a href="#cb10-341" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Small differences are noise.** The GLM and GBM differ by</span>
+<span id="cb10-342"><a href="#cb10-342" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{gini['GBM'] - gini['GLM']:.3f}"`</span>, far less than the test-set</span>
+<span id="cb10-343"><a href="#cb10-343" aria-hidden="true" tabindex="-1"></a>  variability of a Gini on data this noisy. Testing such differences is the</span>
+<span id="cb10-344"><a href="#cb10-344" aria-hidden="true" tabindex="-1"></a>  subject of the <span class="co">[</span><span class="ot">model-comparison page</span><span class="co">](../comparison/model-comparison.qmd)</span>.</span>
+<span id="cb10-345"><a href="#cb10-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-346"><a href="#cb10-346" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which tool for which question</span></span>
+<span id="cb10-347"><a href="#cb10-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-348"><a href="#cb10-348" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Tool <span class="pp">|</span> Answers <span class="pp">|</span> Watch out for <span class="pp">|</span></span>
+<span id="cb10-349"><a href="#cb10-349" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb10-350"><a href="#cb10-350" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Lift chart <span class="pp">|</span> Does cost rise with the prediction, and does the prediction match per segment? <span class="pp">|</span> noisy deciles: read the intervals <span class="pp">|</span></span>
+<span id="cb10-351"><a href="#cb10-351" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Double lift chart <span class="pp">|</span> Where two models disagree, which is right? <span class="pp">|</span> rebalance both models to the same level first <span class="pp">|</span></span>
+<span id="cb10-352"><a href="#cb10-352" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Lorenz curve / Gini <span class="pp">|</span> How well does the model rank risks, in one number? <span class="pp">|</span> blind to calibration and level; not comparable across portfolios <span class="pp">|</span></span>
+<span id="cb10-353"><a href="#cb10-353" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Deviance / D² <span class="pp">|</span> How good are the individual predictions, ranking and level together? <span class="pp">|</span> small values are normal; hard to interpret alone <span class="pp">|</span></span>
+<span id="cb10-354"><a href="#cb10-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-355"><a href="#cb10-355" aria-hidden="true" tabindex="-1"></a>The tools complement each other: the Gini and the lift spread measure</span>
+<span id="cb10-356"><a href="#cb10-356" aria-hidden="true" tabindex="-1"></a>**ranking**, the agreement in the lift chart measures **calibration by</span>
+<span id="cb10-357"><a href="#cb10-357" aria-hidden="true" tabindex="-1"></a>segment**, the double lift chart **compares** two candidate models, and the</span>
+<span id="cb10-358"><a href="#cb10-358" aria-hidden="true" tabindex="-1"></a>deviance checks both ranking and level at once.</span>
+<span id="cb10-359"><a href="#cb10-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-360"><a href="#cb10-360" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
+<span id="cb10-361"><a href="#cb10-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-362"><a href="#cb10-362" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>With noisy outcomes, judge a pricing model on **groups**: deciles of equal</span>
+<span id="cb10-363"><a href="#cb10-363" aria-hidden="true" tabindex="-1"></a>  exposure average away the noise that dominates individual-level metrics.</span>
+<span id="cb10-364"><a href="#cb10-364" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A **lift chart** should rise monotonically, be steep, and have predictions</span>
+<span id="cb10-365"><a href="#cb10-365" aria-hidden="true" tabindex="-1"></a>  that run through the actual points. Here the GLM overpredicts its top decile</span>
+<span id="cb10-366"><a href="#cb10-366" aria-hidden="true" tabindex="-1"></a>  by <span class="in">`{python} f"{top_ratio['GLM'] - 1:.0%}"`</span>.</span>
+<span id="cb10-367"><a href="#cb10-367" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A **double lift chart** compares two models where they disagree. Here each</span>
+<span id="cb10-368"><a href="#cb10-368" aria-hidden="true" tabindex="-1"></a>  model finds mispricing in the other, and a simple **blend** beats both.</span>
+<span id="cb10-369"><a href="#cb10-369" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **Gini index** summarizes the Lorenz curve: <span class="in">`{python} f"{gini['GLM']:.3f}"`</span></span>
+<span id="cb10-370"><a href="#cb10-370" aria-hidden="true" tabindex="-1"></a>  (GLM) against <span class="in">`{python} f"{gini['GBM']:.3f}"`</span> (GBM). It measures ranking only,</span>
+<span id="cb10-371"><a href="#cb10-371" aria-hidden="true" tabindex="-1"></a>  so a badly miscalibrated model can have the same Gini as a good one.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Evaluating the flagged cases when positives are rare: PR curves, average precision, precision and lift in the top k%, and the role of the base rate.">
+
+<title>Precision–recall curves – Model Performance</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-1bdbca75b362e6c5a8c09207907ff998.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/binary/confusion-matrix.html">Binary outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/binary/precision-recall.html">Precision–recall curves</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../../">Model Performance</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Measuring model performance</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/foundations/data-and-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data and models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Binary outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/confusion-matrix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Confusion matrix and threshold metrics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/roc-auc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC curve and AUC</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/precision-recall.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Precision–recall curves</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/calibration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Calibration and proper scoring rules</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Continuous outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/error-metrics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Error metrics: bias, MAE, RMSE and R²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/deviance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Deviance and D²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/lift-lorenz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Lift charts and Lorenz curves</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Comparing models</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/comparison/model-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Comparing models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-look-beyond-roc" id="toc-why-look-beyond-roc" class="nav-link active" data-scroll-target="#why-look-beyond-roc">Why look beyond ROC</a></li>
+  <li><a href="#the-precisionrecall-curve" id="toc-the-precisionrecall-curve" class="nav-link" data-scroll-target="#the-precisionrecall-curve">The precision–recall curve</a></li>
+  <li><a href="#average-precision" id="toc-average-precision" class="nav-link" data-scroll-target="#average-precision">Average precision</a></li>
+  <li><a href="#roc-and-pr-tell-different-stories" id="toc-roc-and-pr-tell-different-stories" class="nav-link" data-scroll-target="#roc-and-pr-tell-different-stories">ROC and PR tell different stories</a></li>
+  <li><a href="#precision-and-lift-in-the-top-k" id="toc-precision-and-lift-in-the-top-k" class="nav-link" data-scroll-target="#precision-and-lift-in-the-top-k">Precision and lift in the top k%</a></li>
+  <li><a href="#precision-depends-on-the-claim-rate" id="toc-precision-depends-on-the-claim-rate" class="nav-link" data-scroll-target="#precision-depends-on-the-claim-rate">Precision depends on the claim rate</a></li>
+  <li><a href="#roc-or-pr" id="toc-roc-or-pr" class="nav-link" data-scroll-target="#roc-or-pr">ROC or PR?</a></li>
+  <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/binary/confusion-matrix.html">Binary outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/binary/precision-recall.html">Precision–recall curves</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Precision–recall curves</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+</div>
+
+<div>
+  <div class="description">
+    Evaluating the flagged cases when positives are rare: PR curves, average precision, precision and lift in the top k%, and the role of the base rate.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><strong>Question answered:</strong> of the cases the model flags, how many are real positives, and how many of the real positives does it find?</p>
+<section id="why-look-beyond-roc" class="level2">
+<h2 class="anchored" data-anchor-id="why-look-beyond-roc">Why look beyond ROC</h2>
+<p>The <a href="../../docs/binary/roc-auc.html">ROC curve</a> measures false alarms <em>relative to all negatives</em>: the false positive rate is FP / (FP + TN). With 96.3% of policies without a claim, that denominator is huge, and a small false positive rate can hide a large number of false alarms:</p>
+<p>At a threshold of 0.1, the GBM has a false positive rate of only 3.3%: a point far to the left on the ROC curve. But that is 5,412 false alarms against 1,180 correctly flagged claims, so only 18% of the flagged policies actually have a claim.</p>
+<p><strong>Precision</strong> relates false alarms to true hits instead of to all negatives, so it shows directly what happens among the flagged cases. That makes it the natural metric when positives are rare and attention goes to the cases the model flags: fraud checks, claim reviews, medical screening, marketing campaigns.</p>
+</section>
+<section id="the-precisionrecall-curve" class="level2">
+<h2 class="anchored" data-anchor-id="the-precisionrecall-curve">The precision–recall curve</h2>
+<p>The PR curve uses the same threshold sweep as the ROC curve, but plots</p>
+<ul>
+<li><strong>recall</strong> (true positive rate: the share of all claims we flag) on the x-axis, against</li>
+<li><strong>precision</strong> (the share of flagged policies with a claim) on the y-axis.</li>
+</ul>
+<p>Starting from a very high threshold, only the highest-risk policies are flagged: recall is small and, for a good model, precision is high. Lowering the threshold raises recall and, usually, lowers precision, until everything is flagged: recall 1 and precision equal to the overall claim rate.</p>
+<div id="cell-fig-pr" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_pr(y, {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> models}, ylim<span class="op">=</span><span class="fl">0.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-pr" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-pr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="precision-recall_files/figure-html/fig-pr-output-1.png" width="557" height="420" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-pr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Precision–recall curves on the test set. Thin gray curves connect points with the same F1 score.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Three things differ from a ROC plot:</p>
+<ul>
+<li><strong>The baseline is the claim rate, not a diagonal.</strong> Flagging at random gives a precision equal to the claim rate (3.7%) at every recall.</li>
+<li><strong>The curve isn’t monotone.</strong> Precision can go up <em>or</em> down when the threshold drops, so the curve is jagged, especially on the left where few policies are flagged and each one changes precision noticeably.</li>
+<li><strong>The left part matters most.</strong> It shows the highest-risk policies, which is where a review or intervention would start. Here the GBM clearly beats the GLM, even though their ROC curves were close.</li>
+</ul>
+<p>The gray curves connect points of equal <strong>F1 score</strong>, the harmonic mean of precision and recall. The best F1 the GBM reaches is 0.185 (at threshold 0.10), against 0.153 for the GLM. Low values like these are typical for rare events. F1 is only a convenient summary: it weights precision and recall equally, which rarely matches the actual costs of misses and false alarms.</p>
+</section>
+<section id="average-precision" class="level2">
+<h2 class="anchored" data-anchor-id="average-precision">Average precision</h2>
+<p><strong>Average precision</strong> (AP) condenses the PR curve into one number: the precision at each threshold, weighted by how much recall that threshold adds,</p>
+<p><span class="math display">\[
+\text{AP} = \sum_k (R_k - R_{k-1})\, P_k,
+\]</span></p>
+<p>where <span class="math inline">\(R_k\)</span> and <span class="math inline">\(P_k\)</span> are recall and precision after lowering the threshold past the <span class="math inline">\(k\)</span>-th distinct score. The Null model’s AP equals the claim rate.</p>
+<p>Using the same ten toy policies as on the ROC page:</p>
+<div class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>toy_y <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>])</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>toy_p <span class="op">=</span> np.array([<span class="fl">0.9</span>, <span class="fl">0.8</span>, <span class="fl">0.7</span>, <span class="fl">0.6</span>, <span class="fl">0.55</span>, <span class="fl">0.5</span>, <span class="fl">0.4</span>, <span class="fl">0.3</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>])</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>toy <span class="op">=</span> pr_points(toy_y, toy_p)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>toy[<span class="st">"AP contribution"</span>] <span class="op">=</span> np.diff(np.r_[<span class="dv">0</span>, toy[<span class="st">"recall"</span>]]) <span class="op">*</span> toy[<span class="st">"precision"</span>]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>toy.<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-toy-pr" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-toy-pr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Precision and recall of the ten toy policies, and each threshold’s contribution to AP.
+</figcaption>
+<div aria-describedby="tbl-toy-pr-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">threshold</th>
+<th data-quarto-table-cell-role="th">recall</th>
+<th data-quarto-table-cell-role="th">precision</th>
+<th data-quarto-table-cell-role="th">AP contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>0.90</td>
+<td>0.25</td>
+<td>1.000</td>
+<td>0.250</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>0.80</td>
+<td>0.50</td>
+<td>1.000</td>
+<td>0.250</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>0.70</td>
+<td>0.50</td>
+<td>0.667</td>
+<td>0.000</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>0.60</td>
+<td>0.75</td>
+<td>0.750</td>
+<td>0.188</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>0.55</td>
+<td>0.75</td>
+<td>0.600</td>
+<td>0.000</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>0.50</td>
+<td>0.75</td>
+<td>0.500</td>
+<td>0.000</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>0.40</td>
+<td>1.00</td>
+<td>0.571</td>
+<td>0.143</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>0.30</td>
+<td>1.00</td>
+<td>0.500</td>
+<td>0.000</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>0.20</td>
+<td>1.00</td>
+<td>0.444</td>
+<td>0.000</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9</th>
+<td>0.10</td>
+<td>1.00</td>
+<td>0.400</td>
+<td>0.000</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>Only the thresholds that add a claim contribute, each with weight 1/4. The AP is 0.830: on average, when the threshold passes a policy with a claim, 83% of the flagged policies have a claim.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Don’t use the trapezoidal area
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Computing the area under the PR curve with the trapezoidal rule (as for ROC) connects the points with straight lines. Between two PR points, precision does not change linearly, so the result is off, in either direction, and it also depends on which starting point is assumed at recall 0. On the toy example it gives 0.811 instead of 0.830. With many distinct scores the gap shrinks, but AP is the well-defined summary: <code>average_precision_score</code> in scikit-learn, whereas <code>sklearn.metrics.auc</code> on a PR curve is the trapezoidal version.</p>
+</div>
+</div>
+</section>
+<section id="roc-and-pr-tell-different-stories" class="level2">
+<h2 class="anchored" data-anchor-id="roc-and-pr-tell-different-stories">ROC and PR tell different stories</h2>
+<div class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AUC"</span>: auc,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average precision"</span>: ap,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AP / claim rate"</span>: {m: ap[m] <span class="op">/</span> rate <span class="cf">for</span> m <span class="kw">in</span> models},</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-auc-ap" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="7">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-auc-ap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Ranking metrics of both models. ‘AP / claim rate’ shows how many times better than random the average precision is.
+</figcaption>
+<div aria-describedby="tbl-auc-ap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">AUC</th>
+<th data-quarto-table-cell-role="th">Average precision</th>
+<th data-quarto-table-cell-role="th">AP / claim rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GLM</th>
+<td>0.694</td>
+<td>0.093</td>
+<td>2.534</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GBM</th>
+<td>0.713</td>
+<td>0.116</td>
+<td>3.152</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The GBM’s AUC is 0.018 higher than the GLM’s, a modest 3%. Its average precision is 24% higher. Both metrics summarize the same ranking, but they weight it differently:</p>
+<ul>
+<li><strong>AUC</strong> weighs all pairs of a claim and a non-claim equally, wherever they are in the ranking.</li>
+<li><strong>AP</strong> weighs the top of the ranking most: a claim ranked first raises precision at every later threshold.</li>
+</ul>
+<p>The GBM’s advantage is concentrated in its highest-risk predictions, so AP shows it more clearly.</p>
+</section>
+<section id="precision-and-lift-in-the-top-k" class="level2">
+<h2 class="anchored" data-anchor-id="precision-and-lift-in-the-top-k">Precision and lift in the top k%</h2>
+<p>In practice, capacity is often fixed: ‘we can review 5% of policies’. Then the relevant question is how good the top 5% of the ranking is. Two measures answer it:</p>
+<ul>
+<li><strong>precision at k%</strong>: the share of flagged policies with a claim, and</li>
+<li><strong>lift at k%</strong>: precision divided by the overall claim rate, i.e.&nbsp;how many times more claims the flagged group contains than a random group of the same size.</li>
+</ul>
+<div class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>shares <span class="op">=</span> [<span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>top <span class="op">=</span> pd.concat(</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    {m: pd.DataFrame({<span class="ss">f"top </span><span class="sc">{</span>s<span class="sc">:.0%}</span><span class="ss">"</span>: top_share_metrics(y, b[m], s) <span class="cf">for</span> s <span class="kw">in</span> shares}).T <span class="cf">for</span> m <span class="kw">in</span> models},</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    axis<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>top.<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-top-k" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="8">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-top-k-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Flagging the k% of policies with the highest predicted probability.
+</figcaption>
+<div aria-describedby="tbl-top-k-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th colspan="3" data-quarto-table-cell-role="th" data-halign="left">GLM</th>
+<th colspan="3" data-quarto-table-cell-role="th" data-halign="left">GBM</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">precision</th>
+<th data-quarto-table-cell-role="th">recall</th>
+<th data-quarto-table-cell-role="th">lift</th>
+<th data-quarto-table-cell-role="th">precision</th>
+<th data-quarto-table-cell-role="th">recall</th>
+<th data-quarto-table-cell-role="th">lift</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">top 1%</th>
+<td>0.206</td>
+<td>0.056</td>
+<td>5.609</td>
+<td>0.282</td>
+<td>0.077</td>
+<td>7.677</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">top 5%</th>
+<td>0.128</td>
+<td>0.173</td>
+<td>3.467</td>
+<td>0.158</td>
+<td>0.214</td>
+<td>4.284</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">top 10%</th>
+<td>0.104</td>
+<td>0.283</td>
+<td>2.832</td>
+<td>0.117</td>
+<td>0.318</td>
+<td>3.175</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">top 20%</th>
+<td>0.080</td>
+<td>0.432</td>
+<td>2.162</td>
+<td>0.084</td>
+<td>0.455</td>
+<td>2.277</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>Flagging the top 1%, the GBM finds 7.7 times more claims than random selection would, the GLM 5.6 times. As the flagged share grows, precision falls towards the claim rate and lift towards 1. Showing lift for every decile of the ranking gives a <strong>lift chart</strong>, covered for pure premium on the <a href="../../docs/continuous/lift-lorenz.html">lift chart page</a>.</p>
+</section>
+<section id="precision-depends-on-the-claim-rate" class="level2">
+<h2 class="anchored" data-anchor-id="precision-depends-on-the-claim-rate">Precision depends on the claim rate</h2>
+<p>Precision has a property that matters a lot in practice: unlike the ROC curve, it <strong>depends on the base rate</strong>. At any threshold,</p>
+<p><span class="math display">\[
+\text{precision} = \frac{\pi \cdot \text{TPR}}{\pi \cdot \text{TPR} + (1 - \pi) \cdot \text{FPR}},
+\]</span></p>
+<p>where <span class="math inline">\(\pi\)</span> is the share of positives. TPR and FPR are properties of the model alone. Precision mixes them with <span class="math inline">\(\pi\)</span>. To see the effect, we keep all policies with a claim and randomly drop policies without a claim until the claim rate reaches 10%, 20% and 50%. The model and its ranking don’t change.</p>
+<div id="ebd3e936" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>pos, neg <span class="op">=</span> np.flatnonzero(y <span class="op">==</span> <span class="dv">1</span>), np.flatnonzero(y <span class="op">==</span> <span class="dv">0</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> {}</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> target <span class="kw">in</span> (rate, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.50</span>):</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    n_neg <span class="op">=</span> <span class="bu">min</span>(<span class="bu">len</span>(neg), <span class="bu">int</span>(<span class="bu">len</span>(pos) <span class="op">*</span> (<span class="dv">1</span> <span class="op">-</span> target) <span class="op">/</span> target))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> np.r_[pos, rng.choice(neg, n_neg, replace<span class="op">=</span><span class="va">False</span>)]</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    samples[<span class="ss">f"</span><span class="sc">{</span>target<span class="sc">:.1%}</span><span class="ss">"</span>] <span class="op">=</span> (y.to_numpy()[idx], b[<span class="st">"GBM"</span>].to_numpy()[idx])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-prevalence" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ramp <span class="op">=</span> [<span class="st">"#86b6ef"</span>, <span class="st">"#3987e5"</span>, <span class="st">"#1c5cab"</span>, <span class="st">"#0d366b"</span>]  <span class="co"># light to dark: rising claim rate</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.6</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot([<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>], color<span class="op">=</span>MUTED, linewidth<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (label, (ys, ps)), color <span class="kw">in</span> <span class="bu">zip</span>(samples.items(), ramp):</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    roc, pr <span class="op">=</span> roc_points(ys, ps), pr_points(ys, ps)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].plot(roc[<span class="st">"fpr"</span>], roc[<span class="st">"tpr"</span>], color<span class="op">=</span>color, label<span class="op">=</span><span class="ss">f"claim rate </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> (AUC </span><span class="sc">{</span>auc_rank(ys, ps)<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].plot(np.r_[<span class="dv">0</span>, pr[<span class="st">"recall"</span>]], np.r_[pr[<span class="st">"precision"</span>].iloc[<span class="dv">0</span>], pr[<span class="st">"precision"</span>]],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>                 drawstyle<span class="op">=</span><span class="st">"steps-pre"</span>, color<span class="op">=</span>color, label<span class="op">=</span><span class="ss">f"claim rate </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> (AP </span><span class="sc">{</span>average_precision(ys, ps)<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"False positive rate"</span>, ylabel<span class="op">=</span><span class="st">"True positive rate"</span>, xlim<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">1</span>), ylim<span class="op">=</span>(<span class="dv">0</span>, <span class="fl">1.01</span>), aspect<span class="op">=</span><span class="st">"equal"</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Recall"</span>, ylabel<span class="op">=</span><span class="st">"Precision"</span>, xlim<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">1</span>), ylim<span class="op">=</span>(<span class="dv">0</span>, <span class="fl">1.01</span>))</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].legend(loc<span class="op">=</span><span class="st">"lower right"</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].legend(loc<span class="op">=</span><span class="st">"upper right"</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-prevalence" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-prevalence-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="precision-recall_files/figure-html/fig-prevalence-output-1.png" width="1066" height="494" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-prevalence-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: The same GBM evaluated at different claim rates (by subsampling policies without a claim). Left: ROC curves. Right: precision–recall curves.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The ROC curves lie on top of each other: AUC doesn’t change. The PR curves rise with the claim rate, and AP climbs from 0.12 to 0.71. <strong>Same model, same ranking, different AP.</strong> This has practical consequences:</p>
+<ul>
+<li><strong>Don’t compare AP across datasets, segments or time periods with different base rates.</strong> A higher AP may only mean more positives. Report the base rate next to every AP, or report AP / base rate.</li>
+<li><strong>Balanced test sets inflate precision.</strong> Undersampling negatives, common in fraud and medical studies, makes precision look far better than it will be in production.</li>
+<li><strong>Precision drifts when the base rate drifts.</strong> If the claim rate drops next year, the precision of the same model at the same threshold drops too, even though nothing about the model has changed. This is one reason to monitor the base rate along with model metrics.</li>
+</ul>
+</section>
+<section id="roc-or-pr" class="level2">
+<h2 class="anchored" data-anchor-id="roc-or-pr">ROC or PR?</h2>
+<p>The two curves contain the same information (given the base rate, every ROC point maps to exactly one PR point), but they emphasize different things:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>ROC / AUC</th>
+<th>PR / AP</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Focus</td>
+<td>the whole ranking, both classes</td>
+<td>the top of the ranking, positive class</td>
+</tr>
+<tr class="even">
+<td>False alarms measured relative to</td>
+<td>all negatives</td>
+<td>true hits</td>
+</tr>
+<tr class="odd">
+<td>Depends on base rate</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>Random baseline</td>
+<td>0.5</td>
+<td>base rate</td>
+</tr>
+<tr class="odd">
+<td>Good for</td>
+<td>comparing rankings across populations; when both error types matter</td>
+<td>rare positives where only the flagged cases are acted on</td>
+</tr>
+</tbody>
+</table>
+<p>It’s often claimed that AP is ‘the right metric for imbalanced data’. That’s too simple. Imbalance alone doesn’t make AUC wrong. Recent work (McDermott et al., 2024) shows that AP favors improvements at the top of the ranking and can favor models that work best for the subgroups with the highest base rates. <strong>Choose by the question</strong>: use AUC when the whole ranking matters, AP or precision at k% when only the top of the ranking is acted on, and report the base rate with any precision-based metric.</p>
+</section>
+<section id="takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="takeaways">Takeaways</h2>
+<ul>
+<li><strong>Precision</strong> relates false alarms to true hits, which is what matters when positives are rare and only flagged cases are acted on.</li>
+<li>The <strong>PR curve</strong>’s baseline is the base rate. <strong>Average precision</strong> is its correct summary; don’t use the trapezoidal area.</li>
+<li>AP weights the <strong>top of the ranking</strong>. Here it shows the GBM’s advantage (24%) much more clearly than AUC (3%).</li>
+<li>With fixed capacity, report <strong>precision and lift at k%</strong>.</li>
+<li>Precision and AP <strong>depend on the base rate</strong>. Never compare them across populations with different base rates, and watch them change when the base rate drifts.</li>
+</ul>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Precision–recall curves"</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Evaluating the flagged cases when positives are rare: PR curves, average precision, precision and lift in the top k%, and the role of the base rate."</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.metrics <span class="im">import</span> (</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    auc_rank,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    average_precision,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    pr_points,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    roc_points,</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    threshold_metrics,</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    top_share_metrics,</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.models <span class="im">import</span> binary_predictions</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.plots <span class="im">import</span> INK_SECONDARY, MODEL_COLORS, MUTED, SURFACE, plot_pr, use_style</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>use_style()</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> binary_predictions()</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> b[<span class="st">"y"</span>]</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>rate <span class="op">=</span> y.mean()</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>models <span class="op">=</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>auc <span class="op">=</span> {m: auc_rank(y, b[m]) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>ap <span class="op">=</span> {m: average_precision(y, b[m]) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>**Question answered:** of the cases the model flags, how many are real</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>positives, and how many of the real positives does it find?</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why look beyond ROC</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">ROC curve</span><span class="co">](roc-auc.qmd)</span> measures false alarms *relative to all</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>negatives*: the false positive rate is FP / (FP + TN). With</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{1 - rate:.1%}"`</span> of policies without a claim, that denominator is</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>huge, and a small false positive rate can hide a large number of false alarms:</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>m10 <span class="op">=</span> threshold_metrics(y, b[<span class="st">"GBM"</span>], <span class="fl">0.1</span>)</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>c10 <span class="op">=</span> (m10[<span class="st">"false positive rate"</span>] <span class="op">*</span> (y <span class="op">==</span> <span class="dv">0</span>).<span class="bu">sum</span>(), m10[<span class="st">"recall (TPR)"</span>] <span class="op">*</span> (y <span class="op">==</span> <span class="dv">1</span>).<span class="bu">sum</span>())</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>At a threshold of 0.1, the GBM has a false positive rate of only</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{m10['false positive rate']:.1%}"`</span>: a point far to the left on the</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>ROC curve. But that is <span class="in">`{python} f"{c10[0]:,.0f}"`</span> false alarms against</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{c10[1]:,.0f}"`</span> correctly flagged claims, so only</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{m10['precision']:.0%}"`</span> of the flagged policies actually have a</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>claim.</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>**Precision** relates false alarms to true hits instead of to all negatives,</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>so it shows directly what happens among the flagged cases. That makes it the</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>natural metric when positives are rare and attention goes to the cases the</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>model flags: fraud checks, claim reviews, medical screening, marketing</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>campaigns.</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="fu">## The precision–recall curve</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>The PR curve uses the same threshold sweep as the ROC curve, but plots</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**recall** (true positive rate: the share of all claims we flag) on the</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>  x-axis, against</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**precision** (the share of flagged policies with a claim) on the y-axis.</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>Starting from a very high threshold, only the highest-risk policies are</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>flagged: recall is small and, for a good model, precision is high. Lowering the</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>threshold raises recall and, usually, lowers precision, until everything is</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>flagged: recall 1 and precision equal to the overall claim rate.</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-pr</span></span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Precision–recall curves on the test set. Thin gray curves connect points with the same F1 score."</span></span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> plot_pr(y, {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> models}, ylim<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>Three things differ from a ROC plot:</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The baseline is the claim rate, not a diagonal.** Flagging at random gives</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>  a precision equal to the claim rate (<span class="in">`{python} f"{rate:.1%}"`</span>) at every recall.</span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The curve isn't monotone.** Precision can go up *or* down when the</span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>  threshold drops, so the curve is jagged, especially on the left where few</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>  policies are flagged and each one changes precision noticeably.</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The left part matters most.** It shows the highest-risk policies, which is</span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>  where a review or intervention would start. Here the GBM clearly beats the</span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>  GLM, even though their ROC curves were close.</span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> best_f1(m):</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Highest F1 over all thresholds, and the threshold where it is reached."""</span></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>    pr <span class="op">=</span> pr_points(y, b[m])</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>    f1 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> pr[<span class="st">"precision"</span>] <span class="op">*</span> pr[<span class="st">"recall"</span>] <span class="op">/</span> (pr[<span class="st">"precision"</span>] <span class="op">+</span> pr[<span class="st">"recall"</span>])</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> f1.<span class="bu">max</span>(), pr.loc[f1.idxmax(), <span class="st">"threshold"</span>]</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a>f1 <span class="op">=</span> {m: best_f1(m) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>The gray curves connect points of equal **F1 score**, the harmonic mean of</span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>precision and recall. The best F1 the GBM reaches is</span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{f1['GBM'][0]:.3f}"`</span> (at threshold <span class="in">`{python} f"{f1['GBM'][1]:.2f}"`</span>),</span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a>against <span class="in">`{python} f"{f1['GLM'][0]:.3f}"`</span> for the GLM. Low values like these are</span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>typical for rare events. F1 is only a convenient summary: it weights precision</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>and recall equally, which rarely matches the actual costs of misses and false</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>alarms.</span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="fu">## Average precision</span></span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>**Average precision** (AP) condenses the PR curve into one number: the</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>precision at each threshold, weighted by how much recall that threshold adds,</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>\text{AP} = \sum_k (R_k - R_{k-1})\, P_k,</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>where $R_k$ and $P_k$ are recall and precision after lowering the threshold</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>past the $k$-th distinct score. The Null model's AP equals the claim rate.</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>Using the same ten toy policies as on the ROC page:</span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-toy-pr</span></span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Precision and recall of the ten toy policies, and each threshold's contribution to AP."</span></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>toy_y <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>])</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>toy_p <span class="op">=</span> np.array([<span class="fl">0.9</span>, <span class="fl">0.8</span>, <span class="fl">0.7</span>, <span class="fl">0.6</span>, <span class="fl">0.55</span>, <span class="fl">0.5</span>, <span class="fl">0.4</span>, <span class="fl">0.3</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>])</span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a>toy <span class="op">=</span> pr_points(toy_y, toy_p)</span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a>toy[<span class="st">"AP contribution"</span>] <span class="op">=</span> np.diff(np.r_[<span class="dv">0</span>, toy[<span class="st">"recall"</span>]]) <span class="op">*</span> toy[<span class="st">"precision"</span>]</span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a>toy.<span class="bu">round</span>(<span class="dv">3</span>)</span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a>toy_ap <span class="op">=</span> toy[<span class="st">"AP contribution"</span>].<span class="bu">sum</span>()</span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a>toy_trap <span class="op">=</span> np.trapezoid(np.r_[<span class="fl">1.0</span>, toy[<span class="st">"precision"</span>]], np.r_[<span class="fl">0.0</span>, toy[<span class="st">"recall"</span>]])</span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a>Only the thresholds that add a claim contribute, each with weight 1/4. The AP is</span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{toy_ap:.3f}"`</span>: on average, when the threshold passes a policy with a</span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a>claim, <span class="in">`{python} f"{toy_ap:.0%}"`</span> of the flagged policies have a claim.</span>
+<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a><span class="fu">## Don't use the trapezoidal area</span></span>
+<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>Computing the area under the PR curve with the trapezoidal rule (as for ROC)</span>
+<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a>connects the points with straight lines. Between two PR points, precision does</span>
+<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a>not change linearly, so the result is off, in either direction, and it also</span>
+<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a>depends on which starting point is assumed at recall 0. On the toy example it</span>
+<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a>gives <span class="in">`{python} f"{toy_trap:.3f}"`</span> instead of <span class="in">`{python} f"{toy_ap:.3f}"`</span>. With</span>
+<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a>many distinct scores the gap shrinks, but AP is the well-defined summary:</span>
+<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a><span class="in">`average_precision_score`</span> in scikit-learn, whereas <span class="in">`sklearn.metrics.auc`</span> on a</span>
+<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a>PR curve is the trapezoidal version.</span>
+<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a><span class="fu">## ROC and PR tell different stories</span></span>
+<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-auc-ap</span></span>
+<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Ranking metrics of both models. 'AP / claim rate' shows how many times better than random the average precision is."</span></span>
+<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AUC"</span>: auc,</span>
+<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average precision"</span>: ap,</span>
+<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AP / claim rate"</span>: {m: ap[m] <span class="op">/</span> rate <span class="cf">for</span> m <span class="kw">in</span> models},</span>
+<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">3</span>)</span>
+<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a>The GBM's AUC is <span class="in">`{python} f"{auc['GBM'] - auc['GLM']:.3f}"`</span> higher than the</span>
+<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a>GLM's, a modest <span class="in">`{python} f"{auc['GBM'] / auc['GLM'] - 1:.0%}"`</span>. Its average</span>
+<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a>precision is <span class="in">`{python} f"{ap['GBM'] / ap['GLM'] - 1:.0%}"`</span> higher. Both metrics</span>
+<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a>summarize the same ranking, but they weight it differently:</span>
+<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**AUC** weighs all pairs of a claim and a non-claim equally, wherever they</span>
+<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a>  are in the ranking.</span>
+<span id="cb7-189"><a href="#cb7-189" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**AP** weighs the top of the ranking most: a claim ranked first raises</span>
+<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a>  precision at every later threshold.</span>
+<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a>The GBM's advantage is concentrated in its highest-risk predictions, so AP</span>
+<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a>shows it more clearly.</span>
+<span id="cb7-194"><a href="#cb7-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-195"><a href="#cb7-195" aria-hidden="true" tabindex="-1"></a><span class="fu">## Precision and lift in the top k%</span></span>
+<span id="cb7-196"><a href="#cb7-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-197"><a href="#cb7-197" aria-hidden="true" tabindex="-1"></a>In practice, capacity is often fixed: 'we can review 5% of policies'. Then</span>
+<span id="cb7-198"><a href="#cb7-198" aria-hidden="true" tabindex="-1"></a>the relevant question is how good the top 5% of the ranking is. Two measures</span>
+<span id="cb7-199"><a href="#cb7-199" aria-hidden="true" tabindex="-1"></a>answer it:</span>
+<span id="cb7-200"><a href="#cb7-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-201"><a href="#cb7-201" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**precision at k%**: the share of flagged policies with a claim, and</span>
+<span id="cb7-202"><a href="#cb7-202" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**lift at k%**: precision divided by the overall claim rate, i.e. how many</span>
+<span id="cb7-203"><a href="#cb7-203" aria-hidden="true" tabindex="-1"></a>  times more claims the flagged group contains than a random group of the same</span>
+<span id="cb7-204"><a href="#cb7-204" aria-hidden="true" tabindex="-1"></a>  size.</span>
+<span id="cb7-205"><a href="#cb7-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-208"><a href="#cb7-208" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-209"><a href="#cb7-209" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-top-k</span></span>
+<span id="cb7-210"><a href="#cb7-210" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Flagging the k% of policies with the highest predicted probability."</span></span>
+<span id="cb7-211"><a href="#cb7-211" aria-hidden="true" tabindex="-1"></a>shares <span class="op">=</span> [<span class="fl">0.01</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>]</span>
+<span id="cb7-212"><a href="#cb7-212" aria-hidden="true" tabindex="-1"></a>top <span class="op">=</span> pd.concat(</span>
+<span id="cb7-213"><a href="#cb7-213" aria-hidden="true" tabindex="-1"></a>    {m: pd.DataFrame({<span class="ss">f"top </span><span class="sc">{</span>s<span class="sc">:.0%}</span><span class="ss">"</span>: top_share_metrics(y, b[m], s) <span class="cf">for</span> s <span class="kw">in</span> shares}).T <span class="cf">for</span> m <span class="kw">in</span> models},</span>
+<span id="cb7-214"><a href="#cb7-214" aria-hidden="true" tabindex="-1"></a>    axis<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb7-215"><a href="#cb7-215" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-216"><a href="#cb7-216" aria-hidden="true" tabindex="-1"></a>top.<span class="bu">round</span>(<span class="dv">3</span>)</span>
+<span id="cb7-217"><a href="#cb7-217" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-218"><a href="#cb7-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-221"><a href="#cb7-221" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-222"><a href="#cb7-222" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-223"><a href="#cb7-223" aria-hidden="true" tabindex="-1"></a>t1 <span class="op">=</span> {m: top_share_metrics(y, b[m], <span class="fl">0.01</span>) <span class="cf">for</span> m <span class="kw">in</span> models}</span>
+<span id="cb7-224"><a href="#cb7-224" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-225"><a href="#cb7-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-226"><a href="#cb7-226" aria-hidden="true" tabindex="-1"></a>Flagging the top 1%, the GBM finds <span class="in">`{python} f"{t1['GBM']['lift']:.1f}"`</span> times</span>
+<span id="cb7-227"><a href="#cb7-227" aria-hidden="true" tabindex="-1"></a>more claims than random selection would, the GLM</span>
+<span id="cb7-228"><a href="#cb7-228" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{t1['GLM']['lift']:.1f}"`</span> times. As the flagged share grows,</span>
+<span id="cb7-229"><a href="#cb7-229" aria-hidden="true" tabindex="-1"></a>precision falls towards the claim rate and lift towards 1. Showing lift for</span>
+<span id="cb7-230"><a href="#cb7-230" aria-hidden="true" tabindex="-1"></a>every decile of the ranking gives a **lift chart**, covered for pure premium</span>
+<span id="cb7-231"><a href="#cb7-231" aria-hidden="true" tabindex="-1"></a>on the <span class="co">[</span><span class="ot">lift chart page</span><span class="co">](../continuous/lift-lorenz.qmd)</span>.</span>
+<span id="cb7-232"><a href="#cb7-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-233"><a href="#cb7-233" aria-hidden="true" tabindex="-1"></a><span class="fu">## Precision depends on the claim rate</span></span>
+<span id="cb7-234"><a href="#cb7-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-235"><a href="#cb7-235" aria-hidden="true" tabindex="-1"></a>Precision has a property that matters a lot in practice: unlike the ROC curve,</span>
+<span id="cb7-236"><a href="#cb7-236" aria-hidden="true" tabindex="-1"></a>it **depends on the base rate**. At any threshold,</span>
+<span id="cb7-237"><a href="#cb7-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-238"><a href="#cb7-238" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-239"><a href="#cb7-239" aria-hidden="true" tabindex="-1"></a>\text{precision} = \frac{\pi \cdot \text{TPR}}{\pi \cdot \text{TPR} + (1 - \pi) \cdot \text{FPR}},</span>
+<span id="cb7-240"><a href="#cb7-240" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-241"><a href="#cb7-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-242"><a href="#cb7-242" aria-hidden="true" tabindex="-1"></a>where $\pi$ is the share of positives. TPR and FPR are properties of the model</span>
+<span id="cb7-243"><a href="#cb7-243" aria-hidden="true" tabindex="-1"></a>alone. Precision mixes them with $\pi$. To see the effect, we keep all policies</span>
+<span id="cb7-244"><a href="#cb7-244" aria-hidden="true" tabindex="-1"></a>with a claim and randomly drop policies without a claim until the claim rate</span>
+<span id="cb7-245"><a href="#cb7-245" aria-hidden="true" tabindex="-1"></a>reaches 10%, 20% and 50%. The model and its ranking don't change.</span>
+<span id="cb7-246"><a href="#cb7-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-249"><a href="#cb7-249" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-250"><a href="#cb7-250" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb7-251"><a href="#cb7-251" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
+<span id="cb7-252"><a href="#cb7-252" aria-hidden="true" tabindex="-1"></a>pos, neg <span class="op">=</span> np.flatnonzero(y <span class="op">==</span> <span class="dv">1</span>), np.flatnonzero(y <span class="op">==</span> <span class="dv">0</span>)</span>
+<span id="cb7-253"><a href="#cb7-253" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> {}</span>
+<span id="cb7-254"><a href="#cb7-254" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> target <span class="kw">in</span> (rate, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.50</span>):</span>
+<span id="cb7-255"><a href="#cb7-255" aria-hidden="true" tabindex="-1"></a>    n_neg <span class="op">=</span> <span class="bu">min</span>(<span class="bu">len</span>(neg), <span class="bu">int</span>(<span class="bu">len</span>(pos) <span class="op">*</span> (<span class="dv">1</span> <span class="op">-</span> target) <span class="op">/</span> target))</span>
+<span id="cb7-256"><a href="#cb7-256" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> np.r_[pos, rng.choice(neg, n_neg, replace<span class="op">=</span><span class="va">False</span>)]</span>
+<span id="cb7-257"><a href="#cb7-257" aria-hidden="true" tabindex="-1"></a>    samples[<span class="ss">f"</span><span class="sc">{</span>target<span class="sc">:.1%}</span><span class="ss">"</span>] <span class="op">=</span> (y.to_numpy()[idx], b[<span class="st">"GBM"</span>].to_numpy()[idx])</span>
+<span id="cb7-258"><a href="#cb7-258" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-259"><a href="#cb7-259" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-262"><a href="#cb7-262" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-263"><a href="#cb7-263" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-prevalence</span></span>
+<span id="cb7-264"><a href="#cb7-264" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "The same GBM evaluated at different claim rates (by subsampling policies without a claim). Left: ROC curves. Right: precision–recall curves."</span></span>
+<span id="cb7-265"><a href="#cb7-265" aria-hidden="true" tabindex="-1"></a>ramp <span class="op">=</span> [<span class="st">"#86b6ef"</span>, <span class="st">"#3987e5"</span>, <span class="st">"#1c5cab"</span>, <span class="st">"#0d366b"</span>]  <span class="co"># light to dark: rising claim rate</span></span>
+<span id="cb7-266"><a href="#cb7-266" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="fl">4.6</span>))</span>
+<span id="cb7-267"><a href="#cb7-267" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot([<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>], color<span class="op">=</span>MUTED, linewidth<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb7-268"><a href="#cb7-268" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (label, (ys, ps)), color <span class="kw">in</span> <span class="bu">zip</span>(samples.items(), ramp):</span>
+<span id="cb7-269"><a href="#cb7-269" aria-hidden="true" tabindex="-1"></a>    roc, pr <span class="op">=</span> roc_points(ys, ps), pr_points(ys, ps)</span>
+<span id="cb7-270"><a href="#cb7-270" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].plot(roc[<span class="st">"fpr"</span>], roc[<span class="st">"tpr"</span>], color<span class="op">=</span>color, label<span class="op">=</span><span class="ss">f"claim rate </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> (AUC </span><span class="sc">{</span>auc_rank(ys, ps)<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb7-271"><a href="#cb7-271" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].plot(np.r_[<span class="dv">0</span>, pr[<span class="st">"recall"</span>]], np.r_[pr[<span class="st">"precision"</span>].iloc[<span class="dv">0</span>], pr[<span class="st">"precision"</span>]],</span>
+<span id="cb7-272"><a href="#cb7-272" aria-hidden="true" tabindex="-1"></a>                 drawstyle<span class="op">=</span><span class="st">"steps-pre"</span>, color<span class="op">=</span>color, label<span class="op">=</span><span class="ss">f"claim rate </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> (AP </span><span class="sc">{</span>average_precision(ys, ps)<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb7-273"><a href="#cb7-273" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"False positive rate"</span>, ylabel<span class="op">=</span><span class="st">"True positive rate"</span>, xlim<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">1</span>), ylim<span class="op">=</span>(<span class="dv">0</span>, <span class="fl">1.01</span>), aspect<span class="op">=</span><span class="st">"equal"</span>)</span>
+<span id="cb7-274"><a href="#cb7-274" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Recall"</span>, ylabel<span class="op">=</span><span class="st">"Precision"</span>, xlim<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">1</span>), ylim<span class="op">=</span>(<span class="dv">0</span>, <span class="fl">1.01</span>))</span>
+<span id="cb7-275"><a href="#cb7-275" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].legend(loc<span class="op">=</span><span class="st">"lower right"</span>)</span>
+<span id="cb7-276"><a href="#cb7-276" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].legend(loc<span class="op">=</span><span class="st">"upper right"</span>)</span>
+<span id="cb7-277"><a href="#cb7-277" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb7-278"><a href="#cb7-278" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-279"><a href="#cb7-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-282"><a href="#cb7-282" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb7-283"><a href="#cb7-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-284"><a href="#cb7-284" aria-hidden="true" tabindex="-1"></a>ap_by_rate <span class="op">=</span> {k: average_precision(<span class="op">*</span>v) <span class="cf">for</span> k, v <span class="kw">in</span> samples.items()}</span>
+<span id="cb7-285"><a href="#cb7-285" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-286"><a href="#cb7-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-287"><a href="#cb7-287" aria-hidden="true" tabindex="-1"></a>The ROC curves lie on top of each other: AUC doesn't change. The PR curves rise</span>
+<span id="cb7-288"><a href="#cb7-288" aria-hidden="true" tabindex="-1"></a>with the claim rate, and AP climbs from <span class="in">`{python} f"{ap_by_rate[f'{rate:.1%}']:.2f}"`</span></span>
+<span id="cb7-289"><a href="#cb7-289" aria-hidden="true" tabindex="-1"></a>to <span class="in">`{python} f"{ap_by_rate['50.0%']:.2f}"`</span>. **Same model, same ranking,</span>
+<span id="cb7-290"><a href="#cb7-290" aria-hidden="true" tabindex="-1"></a>different AP.** This has practical consequences:</span>
+<span id="cb7-291"><a href="#cb7-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-292"><a href="#cb7-292" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Don't compare AP across datasets, segments or time periods with different</span>
+<span id="cb7-293"><a href="#cb7-293" aria-hidden="true" tabindex="-1"></a>  base rates.** A higher AP may only mean more positives. Report the base rate</span>
+<span id="cb7-294"><a href="#cb7-294" aria-hidden="true" tabindex="-1"></a>  next to every AP, or report AP / base rate.</span>
+<span id="cb7-295"><a href="#cb7-295" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Balanced test sets inflate precision.** Undersampling negatives, common in</span>
+<span id="cb7-296"><a href="#cb7-296" aria-hidden="true" tabindex="-1"></a>  fraud and medical studies, makes precision look far better than it will be in</span>
+<span id="cb7-297"><a href="#cb7-297" aria-hidden="true" tabindex="-1"></a>  production.</span>
+<span id="cb7-298"><a href="#cb7-298" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Precision drifts when the base rate drifts.** If the claim rate drops next</span>
+<span id="cb7-299"><a href="#cb7-299" aria-hidden="true" tabindex="-1"></a>  year, the precision of the same model at the same threshold drops too, even</span>
+<span id="cb7-300"><a href="#cb7-300" aria-hidden="true" tabindex="-1"></a>  though nothing about the model has changed. This is one reason to monitor the</span>
+<span id="cb7-301"><a href="#cb7-301" aria-hidden="true" tabindex="-1"></a>  base rate along with model metrics.</span>
+<span id="cb7-302"><a href="#cb7-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-303"><a href="#cb7-303" aria-hidden="true" tabindex="-1"></a><span class="fu">## ROC or PR?</span></span>
+<span id="cb7-304"><a href="#cb7-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-305"><a href="#cb7-305" aria-hidden="true" tabindex="-1"></a>The two curves contain the same information (given the base rate, every ROC</span>
+<span id="cb7-306"><a href="#cb7-306" aria-hidden="true" tabindex="-1"></a>point maps to exactly one PR point), but they emphasize different things:</span>
+<span id="cb7-307"><a href="#cb7-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-308"><a href="#cb7-308" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="pp">|</span> ROC / AUC <span class="pp">|</span> PR / AP <span class="pp">|</span></span>
+<span id="cb7-309"><a href="#cb7-309" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb7-310"><a href="#cb7-310" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Focus <span class="pp">|</span> the whole ranking, both classes <span class="pp">|</span> the top of the ranking, positive class <span class="pp">|</span></span>
+<span id="cb7-311"><a href="#cb7-311" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> False alarms measured relative to <span class="pp">|</span> all negatives <span class="pp">|</span> true hits <span class="pp">|</span></span>
+<span id="cb7-312"><a href="#cb7-312" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Depends on base rate <span class="pp">|</span> no <span class="pp">|</span> yes <span class="pp">|</span></span>
+<span id="cb7-313"><a href="#cb7-313" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Random baseline <span class="pp">|</span> 0.5 <span class="pp">|</span> base rate <span class="pp">|</span></span>
+<span id="cb7-314"><a href="#cb7-314" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Good for <span class="pp">|</span> comparing rankings across populations; when both error types matter <span class="pp">|</span> rare positives where only the flagged cases are acted on <span class="pp">|</span></span>
+<span id="cb7-315"><a href="#cb7-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-316"><a href="#cb7-316" aria-hidden="true" tabindex="-1"></a>It's often claimed that AP is 'the right metric for imbalanced data'. That's</span>
+<span id="cb7-317"><a href="#cb7-317" aria-hidden="true" tabindex="-1"></a>too simple. Imbalance alone doesn't make AUC wrong. Recent work (McDermott et</span>
+<span id="cb7-318"><a href="#cb7-318" aria-hidden="true" tabindex="-1"></a>al., 2024) shows that AP favors improvements at the top of the ranking and can</span>
+<span id="cb7-319"><a href="#cb7-319" aria-hidden="true" tabindex="-1"></a>favor models that work best for the subgroups with the highest base rates.</span>
+<span id="cb7-320"><a href="#cb7-320" aria-hidden="true" tabindex="-1"></a>**Choose by the question**: use AUC when the whole ranking matters, AP or</span>
+<span id="cb7-321"><a href="#cb7-321" aria-hidden="true" tabindex="-1"></a>precision at k% when only the top of the ranking is acted on, and report the</span>
+<span id="cb7-322"><a href="#cb7-322" aria-hidden="true" tabindex="-1"></a>base rate with any precision-based metric.</span>
+<span id="cb7-323"><a href="#cb7-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-324"><a href="#cb7-324" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
+<span id="cb7-325"><a href="#cb7-325" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-326"><a href="#cb7-326" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Precision** relates false alarms to true hits, which is what matters when</span>
+<span id="cb7-327"><a href="#cb7-327" aria-hidden="true" tabindex="-1"></a>  positives are rare and only flagged cases are acted on.</span>
+<span id="cb7-328"><a href="#cb7-328" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **PR curve**'s baseline is the base rate. **Average precision** is its</span>
+<span id="cb7-329"><a href="#cb7-329" aria-hidden="true" tabindex="-1"></a>  correct summary; don't use the trapezoidal area.</span>
+<span id="cb7-330"><a href="#cb7-330" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>AP weights the **top of the ranking**. Here it shows the GBM's advantage</span>
+<span id="cb7-331"><a href="#cb7-331" aria-hidden="true" tabindex="-1"></a>  (<span class="in">`{python} f"{ap['GBM'] / ap['GLM'] - 1:.0%}"`</span>) much more clearly than AUC</span>
+<span id="cb7-332"><a href="#cb7-332" aria-hidden="true" tabindex="-1"></a>  (<span class="in">`{python} f"{auc['GBM'] / auc['GLM'] - 1:.0%}"`</span>).</span>
+<span id="cb7-333"><a href="#cb7-333" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>With fixed capacity, report **precision and lift at k%**.</span>
+<span id="cb7-334"><a href="#cb7-334" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Precision and AP **depend on the base rate**. Never compare them across</span>
+<span id="cb7-335"><a href="#cb7-335" aria-hidden="true" tabindex="-1"></a>  populations with different base rates, and watch them change when the base</span>
+<span id="cb7-336"><a href="#cb7-336" aria-hidden="true" tabindex="-1"></a>  rate drifts.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

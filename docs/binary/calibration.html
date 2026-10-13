@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Do predicted probabilities match observed frequencies? Reliability diagrams, calibration slope, Brier score, log loss and the Murphy decomposition.">
+
+<title>Calibration and proper scoring rules – Model Performance</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-1bdbca75b362e6c5a8c09207907ff998.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/binary/confusion-matrix.html">Binary outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/binary/calibration.html">Calibration and proper scoring rules</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../../">Model Performance</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Measuring model performance</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/foundations/data-and-models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data and models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Binary outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/confusion-matrix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Confusion matrix and threshold metrics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/roc-auc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC curve and AUC</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/precision-recall.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision–recall curves</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/binary/calibration.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Calibration and proper scoring rules</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Continuous outcomes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/error-metrics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Error metrics: bias, MAE, RMSE and R²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/deviance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Deviance and D²</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/continuous/lift-lorenz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Lift charts and Lorenz curves</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Comparing models</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../docs/comparison/model-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Comparing models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#what-calibration-means" id="toc-what-calibration-means" class="nav-link active" data-scroll-target="#what-calibration-means">What calibration means</a></li>
+  <li><a href="#calibration-in-the-large" id="toc-calibration-in-the-large" class="nav-link" data-scroll-target="#calibration-in-the-large">Calibration in the large</a></li>
+  <li><a href="#reliability-diagrams" id="toc-reliability-diagrams" class="nav-link" data-scroll-target="#reliability-diagrams">Reliability diagrams</a>
+  <ul class="collapse">
+  <li><a href="#the-classic-version-binning" id="toc-the-classic-version-binning" class="nav-link" data-scroll-target="#the-classic-version-binning">The classic version: binning</a></li>
+  <li><a href="#the-problem-with-bins" id="toc-the-problem-with-bins" class="nav-link" data-scroll-target="#the-problem-with-bins">The problem with bins</a></li>
+  <li><a href="#the-modern-version-corp" id="toc-the-modern-version-corp" class="nav-link" data-scroll-target="#the-modern-version-corp">The modern version: CORP</a></li>
+  </ul></li>
+  <li><a href="#calibration-intercept-and-slope" id="toc-calibration-intercept-and-slope" class="nav-link" data-scroll-target="#calibration-intercept-and-slope">Calibration intercept and slope</a></li>
+  <li><a href="#proper-scoring-rules" id="toc-proper-scoring-rules" class="nav-link" data-scroll-target="#proper-scoring-rules">Proper scoring rules</a>
+  <ul class="collapse">
+  <li><a href="#the-murphy-decomposition" id="toc-the-murphy-decomposition" class="nav-link" data-scroll-target="#the-murphy-decomposition">The Murphy decomposition</a></li>
+  </ul></li>
+  <li><a href="#calibration-within-segments" id="toc-calibration-within-segments" class="nav-link" data-scroll-target="#calibration-within-segments">Calibration within segments</a></li>
+  <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../docs/binary/confusion-matrix.html">Binary outcomes</a></li><li class="breadcrumb-item"><a href="../../docs/binary/calibration.html">Calibration and proper scoring rules</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Calibration and proper scoring rules</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+</div>
+
+<div>
+  <div class="description">
+    Do predicted probabilities match observed frequencies? Reliability diagrams, calibration slope, Brier score, log loss and the Murphy decomposition.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><strong>Question answered:</strong> when the model says 10%, does the event happen about 10% of the time?</p>
+<p>The <a href="../../docs/binary/roc-auc.html">ROC page</a> ended with a warning: AUC only measures <em>ranking</em>. A model can rank perfectly and still predict probabilities that are far off. Whenever the probabilities themselves are used, for a premium, an expected cost, a capital estimate or the <a href="../../docs/binary/confusion-matrix.html#choosing-a-threshold">cost-based threshold</a>, they must also be <strong>calibrated</strong>.</p>
+<section id="what-calibration-means" class="level2">
+<h2 class="anchored" data-anchor-id="what-calibration-means">What calibration means</h2>
+<p>A model is calibrated if, among all cases that receive prediction <span class="math inline">\(\hat p\)</span>, the event happens with frequency <span class="math inline">\(\hat p\)</span>:</p>
+<p><span class="math display">\[
+P(Y = 1 \mid \hat p = p) = p \quad \text{for all } p.
+\]</span></p>
+<p>Calibration and discrimination are separate properties:</p>
+<ul>
+<li>Always predicting the overall claim rate (the Null model) is <strong>perfectly calibrated but has no discrimination</strong>.</li>
+<li>Dividing every GBM prediction by 10 keeps the <strong>discrimination but ruins calibration</strong>.</li>
+</ul>
+<p>A good model needs both.</p>
+</section>
+<section id="calibration-in-the-large" class="level2">
+<h2 class="anchored" data-anchor-id="calibration-in-the-large">Calibration in the large</h2>
+<p>The simplest check: is the average prediction equal to the observed rate?</p>
+<div class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average prediction"</span>: {m: b[m].mean() <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Observed rate"</span>: {m: rate <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-in-the-large" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="2">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-in-the-large-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Average predicted probability and observed claim rate on the test set.
+</figcaption>
+<div aria-describedby="tbl-in-the-large-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Average prediction</th>
+<th data-quarto-table-cell-role="th">Observed rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Null</th>
+<td>0.0368</td>
+<td>0.0368</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GLM</th>
+<td>0.0366</td>
+<td>0.0368</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GBM</th>
+<td>0.0367</td>
+<td>0.0368</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>All three are close to the observed 3.68%. This check is necessary but far from sufficient: a model can be right on average while too high for low risks and too low for high risks, and these errors cancel out.</p>
+</section>
+<section id="reliability-diagrams" class="level2">
+<h2 class="anchored" data-anchor-id="reliability-diagrams">Reliability diagrams</h2>
+<p>A <strong>reliability diagram</strong> plots the observed rate against the predicted probability. A calibrated model follows the diagonal. Points above the diagonal mean the model predicts <strong>too low</strong> there, points below mean <strong>too high</strong>.</p>
+<section id="the-classic-version-binning" class="level3">
+<h3 class="anchored" data-anchor-id="the-classic-version-binning">The classic version: binning</h3>
+<p>The usual recipe sorts the cases by prediction, splits them into bins (here 20 bins with equal numbers of policies), and plots each bin’s average prediction against its observed claim rate:</p>
+<div id="cell-fig-reliability-bins" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="fl">9.5</span>, <span class="fl">4.5</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {m: b[m]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"bins"</span>, title<span class="op">=</span>m)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-reliability-bins" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-reliability-bins-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="calibration_files/figure-html/fig-reliability-bins-output-1.png" width="997" height="497" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-reliability-bins-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Binned reliability diagrams: 20 bins of equal size, with 95% confidence intervals for the observed rate.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Both models stay close to the diagonal over most of the range. Most policies have a predicted probability below 10%, so the bins are packed there and sparse above. The few high-risk bins carry wide confidence intervals.</p>
+</section>
+<section id="the-problem-with-bins" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem-with-bins">The problem with bins</h3>
+<p>The picture depends on how the bins are chosen, and there’s no right choice. The same GBM with different binnings:</p>
+<div id="cell-fig-binning" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.2</span>))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, (n, strategy) <span class="kw">in</span> <span class="bu">zip</span>(axes, [(<span class="dv">10</span>, <span class="st">"uniform"</span>), (<span class="dv">10</span>, <span class="st">"quantile"</span>), (<span class="dv">100</span>, <span class="st">"quantile"</span>)]):</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {<span class="st">"GBM"</span>: b[<span class="st">"GBM"</span>]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"bins"</span>, n_bins<span class="op">=</span>n, strategy<span class="op">=</span>strategy,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                     max_p<span class="op">=</span><span class="fl">0.35</span>, title<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'equal-width'</span> <span class="cf">if</span> strategy <span class="op">==</span> <span class="st">'uniform'</span> <span class="cf">else</span> <span class="st">'equal-count'</span><span class="sc">}</span><span class="ss"> bins"</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    ax.get_legend().remove()</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-binning" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-binning-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="calibration_files/figure-html/fig-binning-output-1.png" width="1323" height="452" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-binning-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: The GBM’s reliability diagram under three binning choices.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Equal-width bins put nearly all policies in the first two bins and leave the rest nearly empty. Few equal-count bins hide any detail at the high end. Many bins turn the diagram into noise. Summary statistics built on bins inherit the problem. The <strong>expected calibration error</strong> (ECE), the share-weighted average gap between bin prediction and bin rate, changes with the binning:</p>
+<div class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>settings <span class="op">=</span> [(<span class="dv">10</span>, <span class="st">"uniform"</span>), (<span class="dv">20</span>, <span class="st">"uniform"</span>), (<span class="dv">5</span>, <span class="st">"quantile"</span>), (<span class="dv">10</span>, <span class="st">"quantile"</span>), (<span class="dv">20</span>, <span class="st">"quantile"</span>), (<span class="dv">100</span>, <span class="st">"quantile"</span>)]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'equal-width'</span> <span class="cf">if</span> s <span class="op">==</span> <span class="st">'uniform'</span> <span class="cf">else</span> <span class="st">'equal-count'</span><span class="sc">}</span><span class="ss">"</span>: {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        m: expected_calibration_error(y, b[m], n, s) <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n, s <span class="kw">in</span> settings</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-ece" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="5">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-ece-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Expected calibration error of the same predictions under different binnings.
+</figcaption>
+<div aria-describedby="tbl-ece-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">GLM</th>
+<th data-quarto-table-cell-role="th">GBM</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">10 equal-width</th>
+<td>0.00172</td>
+<td>0.00089</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">20 equal-width</th>
+<td>0.00262</td>
+<td>0.00101</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">5 equal-count</th>
+<td>0.00192</td>
+<td>0.00051</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">10 equal-count</th>
+<td>0.00306</td>
+<td>0.00187</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">20 equal-count</th>
+<td>0.00313</td>
+<td>0.00215</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">100 equal-count</th>
+<td>0.00437</td>
+<td>0.00342</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>With 100 bins, the GBM’s ECE is 7 times larger than with 5 bins. That’s not because the model got worse: smaller bins simply contain more sampling noise. ECE values are only comparable at the same binning, and even then mostly measure noise when bins are small.</p>
+</section>
+<section id="the-modern-version-corp" class="level3">
+<h3 class="anchored" data-anchor-id="the-modern-version-corp">The modern version: CORP</h3>
+<p>The <strong>CORP</strong> approach (consistent, optimally binned, reproducible; Dimitriadis, Gneiting and Jordan, 2021) replaces hand-chosen bins with <strong>isotonic regression</strong>. It finds the best <em>non-decreasing</em> step function mapping predictions to observed outcomes, using the pool-adjacent-violators (PAV) algorithm. In effect, the data chooses the bins: adjacent predictions are merged exactly where their outcomes don’t support a higher rate.</p>
+<ul>
+<li><strong>No tuning:</strong> no bin count or bin edges to choose, so the result is reproducible.</li>
+<li><strong>Consistent:</strong> with more data, the curve converges to the true calibration curve.</li>
+<li><strong>Uncertainty built in:</strong> simulating outcomes <em>from the model’s own probabilities</em> shows how much a perfectly calibrated model’s curve wobbles by chance. The 90% range of these simulations is the <strong>consistency band</strong>. Where the observed curve leaves the band, the miscalibration is real.</li>
+</ul>
+<div id="cell-fig-corp" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="fl">9.5</span>, <span class="fl">4.5</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)):</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {m: b[m]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"corp"</span>, band<span class="op">=</span><span class="va">True</span>, title<span class="op">=</span>m)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-corp" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-corp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="calibration_files/figure-html/fig-corp-output-1.png" width="997" height="497" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-corp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: CORP reliability diagrams with 90% consistency bands (200 simulations each).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Both curves follow the diagonal closely where most policies are, below about 6%. Above that, both tend to run above the diagonal, and the GLM’s curve leaves its band several times. Both models under-predict their highest risks, the GLM more clearly. The <a href="#calibration-within-segments">segment analysis</a> below shows where this comes from. In practice, the CORP diagram should be the default, and binned diagrams kept for audiences used to them.</p>
+</section>
+</section>
+<section id="calibration-intercept-and-slope" class="level2">
+<h2 class="anchored" data-anchor-id="calibration-intercept-and-slope">Calibration intercept and slope</h2>
+<p>Two numbers summarize the most common patterns of miscalibration. Fit a logistic regression of the outcome on the model’s logit,</p>
+<p><span class="math display">\[
+\operatorname{logit} P(Y = 1) = a + b \cdot \operatorname{logit}(\hat p),
+\]</span></p>
+<p>and read off:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic</th>
+<th>Ideal</th>
+<th>Meaning when off</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Calibration intercept</strong> <span class="math inline">\(a\)</span> (with <span class="math inline">\(b\)</span> fixed at 1)</td>
+<td>0</td>
+<td>&gt; 0: predictions too low on average; &lt; 0: too high</td>
+</tr>
+<tr class="even">
+<td><strong>Calibration slope</strong> <span class="math inline">\(b\)</span></td>
+<td>1</td>
+<td>&lt; 1: predictions <strong>too extreme</strong> (too spread out, typical of overfitting); &gt; 1: <strong>too timid</strong> (not spread out enough, typical of over-regularization)</td>
+</tr>
+</tbody>
+</table>
+<p>To see these patterns, we distort the GBM’s predictions in three ways:</p>
+<div id="aa341448" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>center <span class="op">=</span> logit(rate)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>variants <span class="op">=</span> {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBM"</span>: b[<span class="st">"GBM"</span>],</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too low (× 0.6)"</span>: <span class="fl">0.6</span> <span class="op">*</span> b[<span class="st">"GBM"</span>],</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too extreme"</span>: expit(center <span class="op">+</span> <span class="fl">1.6</span> <span class="op">*</span> (logit(b[<span class="st">"GBM"</span>]) <span class="op">-</span> center)),</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too timid"</span>: expit(center <span class="op">+</span> <span class="fl">0.6</span> <span class="op">*</span> (logit(b[<span class="st">"GBM"</span>]) <span class="op">-</span> center)),</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="cell-fig-patterns" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.2</span>))</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, name <span class="kw">in</span> <span class="bu">zip</span>(axes, <span class="bu">list</span>(variants)[<span class="dv">1</span>:]):</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {name: variants[name]}, ax<span class="op">=</span>ax, max_p<span class="op">=</span><span class="fl">0.25</span>, title<span class="op">=</span>name,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                     colors<span class="op">=</span>{name: <span class="st">"#eb6834"</span>})</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    ax.get_legend().remove()</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-patterns" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-patterns-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="calibration_files/figure-html/fig-patterns-output-1.png" width="1307" height="436" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-patterns-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: CORP reliability curves of three distorted versions of the GBM.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)} <span class="op">|</span> {k: v <span class="cf">for</span> k, v <span class="kw">in</span> variants.items() <span class="cf">if</span> k <span class="op">!=</span> <span class="st">"GBM"</span>}</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    k: pd.concat([calibration_intercept_slope(y, v), pd.Series({<span class="st">"AUC"</span>: auc_rank(y, v)})])</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> k, v <span class="kw">in</span> rows.items()</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-slope" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="10">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-slope-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3: Calibration intercept, slope and AUC of the models and the distorted variants.
+</figcaption>
+<div aria-describedby="tbl-slope-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">calibration intercept</th>
+<th data-quarto-table-cell-role="th">calibration slope</th>
+<th data-quarto-table-cell-role="th">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GLM</th>
+<td>0.004</td>
+<td>0.987</td>
+<td>0.694</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GBM</th>
+<td>0.004</td>
+<td>1.025</td>
+<td>0.713</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">too low (× 0.6)</th>
+<td>0.544</td>
+<td>1.063</td>
+<td>0.713</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">too extreme</th>
+<td>-0.242</td>
+<td>0.641</td>
+<td>0.713</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">too timid</th>
+<td>0.073</td>
+<td>1.711</td>
+<td>0.713</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<ul>
+<li>The <strong>GLM and GBM</strong> have intercepts near 0 and slopes near 1: well calibrated overall.</li>
+<li><strong>Too low</strong> shows a positive intercept: the curve runs above the diagonal everywhere.</li>
+<li><strong>Too extreme</strong> has a slope below 1: low risks predicted too low, high risks too high. The curve is flatter than the diagonal. This is what an overfitted model looks like on new data.</li>
+<li><strong>Too timid</strong> has a slope above 1: the curve is steeper than the diagonal.</li>
+<li>The <strong>AUC is identical</strong> for all GBM variants. None of these problems is visible in ranking metrics.</li>
+</ul>
+</section>
+<section id="proper-scoring-rules" class="level2">
+<h2 class="anchored" data-anchor-id="proper-scoring-rules">Proper scoring rules</h2>
+<p>Calibration plots diagnose. To <em>compare</em> models with a single number that rewards both calibration and discrimination, use a <strong>proper scoring rule</strong>. It’s a score whose expected value is best when the predicted probability equals the true probability, so no forecaster can improve their expected score by reporting anything other than what they believe. The two standard ones, lower is better for both:</p>
+<p><span class="math display">\[
+\text{Brier score} = \frac{1}{n}\sum_{i} (\hat p_i - y_i)^2,
+\qquad
+\text{log loss} = -\frac{1}{n}\sum_{i} \big[ y_i \log \hat p_i + (1 - y_i)\log(1 - \hat p_i) \big].
+\]</span></p>
+<ul>
+<li><strong>Brier score</strong>: squared error on probabilities. It’s bounded and robust, but small differences are hard to see when events are rare.</li>
+<li><strong>Log loss</strong>: the negative log-likelihood, and exactly what logistic regression and the GBM were trained on. It punishes confident wrong predictions without limit: predicting 0.1% for a policy that does have a claim costs far more than predicting 10% for one that doesn’t.</li>
+</ul>
+<p>Accuracy, F1 and AUC are <strong>not</strong> proper scoring rules. Accuracy and F1 only see which side of a threshold a prediction falls on, and AUC only sees ranking. A model can improve on them while its probabilities get worse.</p>
+<section id="the-murphy-decomposition" class="level3">
+<h3 class="anchored" data-anchor-id="the-murphy-decomposition">The Murphy decomposition</h3>
+<p>A raw score is hard to interpret on its own. The CORP decomposition splits any proper score exactly into three parts:</p>
+<p><span class="math display">\[
+\text{score} = \underbrace{\text{MCB}}_{\text{miscalibration}} - \underbrace{\text{DSC}}_{\text{discrimination}} + \underbrace{\text{UNC}}_{\text{uncertainty}}.
+\]</span></p>
+<ul>
+<li><strong>UNC</strong>: the score of the Null model, i.e.&nbsp;how hard the problem is. It’s the same for every model on the same data.</li>
+<li><strong>DSC</strong>: how much the score improves when the predictions are optimally recalibrated (isotonic regression), compared with the Null model. It depends only on the <em>ranking</em>, like AUC. Higher is better.</li>
+<li><strong>MCB</strong>: how much worse the actual predictions score than their recalibrated version: the price paid for miscalibration. Lower is better.</li>
+</ul>
+<div class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>cases <span class="op">=</span> {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)} <span class="op">|</span> {<span class="st">"GBM / 10"</span>: b[<span class="st">"GBM"</span>] <span class="op">/</span> <span class="dv">10</span>, <span class="st">"GBM ^ 0.2"</span>: b[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="fl">0.2</span>}</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>murphy <span class="op">=</span> pd.DataFrame({k: murphy_decomposition(y, v, <span class="st">"log loss"</span>) <span class="cf">for</span> k, v <span class="kw">in</span> cases.items()}).T</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>murphy.<span class="bu">round</span>(<span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-murphy" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="11">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-murphy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;4: Murphy decomposition of the log loss. The two last rows are the order-preserving transformations from the ROC page.
+</figcaption>
+<div aria-describedby="tbl-murphy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="11">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">log loss</th>
+<th data-quarto-table-cell-role="th">MCB</th>
+<th data-quarto-table-cell-role="th">DSC</th>
+<th data-quarto-table-cell-role="th">UNC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Null</th>
+<td>0.15760</td>
+<td>0.00000</td>
+<td>0.00000</td>
+<td>0.1576</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GLM</th>
+<td>0.14822</td>
+<td>0.00044</td>
+<td>0.00983</td>
+<td>0.1576</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GBM</th>
+<td>0.14502</td>
+<td>0.00033</td>
+<td>0.01291</td>
+<td>0.1576</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">GBM / 10</th>
+<td>0.19791</td>
+<td>0.05321</td>
+<td>0.01291</td>
+<td>0.1576</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">GBM ^ 0.2</th>
+<td>0.68023</td>
+<td>0.53554</td>
+<td>0.01291</td>
+<td>0.1576</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The table answers <em>why</em> one model scores better than another:</p>
+<ul>
+<li>The <strong>GBM beats the GLM through discrimination</strong>: its DSC is 31% higher, while both have very small MCB.</li>
+<li>The two transformed GBMs have <strong>exactly the GBM’s DSC</strong>: they rank the same. All their extra loss is miscalibration.</li>
+<li>The <strong>Null model</strong> has DSC 0 and MCB 0: calibrated, but no discrimination.</li>
+</ul>
+<p>The same table for the Brier score (try <code>murphy_decomposition(y, p, "Brier")</code>) tells the same story. Use the decomposition whenever two models are compared on a scoring rule: it separates ‘ranks better’ from ‘is better calibrated’.</p>
+</section>
+</section>
+<section id="calibration-within-segments" class="level2">
+<h2 class="anchored" data-anchor-id="calibration-within-segments">Calibration within segments</h2>
+<p>Overall calibration can hide miscalibration in subgroups, and subgroups are often what matters, such as tariff cells, customer segments or regions. Insurers check this with the <strong>actual-to-expected (A/E) ratio</strong>: observed claims divided by predicted claims, per segment. A/E above 1 means the model predicts too low for that segment.</p>
+<div class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>test <span class="op">=</span> train_test().test</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>segment <span class="op">=</span> pd.cut(test[<span class="st">"BonusMalus"</span>], [<span class="dv">0</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">80</span>, <span class="dv">100</span>, <span class="dv">250</span>],</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                 labels<span class="op">=</span>[<span class="st">"50 (best)"</span>, <span class="st">"51–60"</span>, <span class="st">"61–80"</span>, <span class="st">"81–100"</span>, <span class="st">"&gt; 100 (malus)"</span>])</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> b.assign(segment<span class="op">=</span>segment.to_numpy())</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>grouped <span class="op">=</span> df.groupby(<span class="st">"segment"</span>, observed<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>ae <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Policies"</span>: grouped.size(),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Observed rate"</span>: grouped[<span class="st">"y"</span>].mean(),</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"A/E GLM"</span>: grouped[<span class="st">"y"</span>].<span class="bu">sum</span>() <span class="op">/</span> grouped[<span class="st">"GLM"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"A/E GBM"</span>: grouped[<span class="st">"y"</span>].<span class="bu">sum</span>() <span class="op">/</span> grouped[<span class="st">"GBM"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>ae.<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="tbl-segments" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="13">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-segments-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;5: Actual-to-expected ratio by bonus-malus level (test set).
+</figcaption>
+<div aria-describedby="tbl-segments-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe cell caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Policies</th>
+<th data-quarto-table-cell-role="th">Observed rate</th>
+<th data-quarto-table-cell-role="th">A/E GLM</th>
+<th data-quarto-table-cell-role="th">A/E GBM</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">segment</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">50 (best)</th>
+<td>95915</td>
+<td>0.029</td>
+<td>0.960</td>
+<td>1.014</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">51–60</th>
+<td>23713</td>
+<td>0.036</td>
+<td>1.189</td>
+<td>0.982</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">61–80</th>
+<td>29623</td>
+<td>0.047</td>
+<td>1.104</td>
+<td>1.013</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">81–100</th>
+<td>18305</td>
+<td>0.051</td>
+<td>0.832</td>
+<td>0.970</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">&gt; 100 (malus)</th>
+<td>1948</td>
+<td>0.143</td>
+<td>1.305</td>
+<td>1.034</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The GLM is calibrated overall but not across bonus-malus levels: its A/E ratios range from 0.83 to 1.31. For policyholders with a malus, it predicts 31% fewer claims than actually occur, while in the 81–100 band it predicts too many. The errors cancel out in the overall average. The GLM uses a single log-linear effect for bonus-malus, which is too rigid for the real relationship. The GBM stays within a few percent in every segment. A table like this points directly to the feature that needs a better specification.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Fixing miscalibration
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>If ranking is good but probabilities are off, a model can be <strong>recalibrated</strong> by mapping its predictions through a fitted function:</p>
+<ul>
+<li><strong>Platt scaling</strong> (logistic): fit the intercept and slope above, apply them. Few parameters, robust, fixes the common patterns.</li>
+<li><strong>Isotonic regression</strong>: the CORP curve itself. Flexible, but needs plenty of data and produces step-shaped probabilities.</li>
+</ul>
+<p>Fit the recalibration on data that wasn’t used to train the model, and evaluate on yet another set (scikit-learn: <code>CalibratedClassifierCV</code>). A monotone recalibration leaves the ranking, and therefore AUC and DSC, essentially unchanged. It only removes MCB.</p>
+</div>
+</div>
+</section>
+<section id="takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="takeaways">Takeaways</h2>
+<ul>
+<li><strong>Calibration</strong> asks whether predicted probabilities match observed frequencies. It’s separate from discrimination, and AUC can’t see it.</li>
+<li>Prefer <strong>CORP reliability diagrams</strong> with consistency bands over binned diagrams. Bins and the ECE depend on arbitrary choices.</li>
+<li><strong>Calibration slope</strong> &lt; 1 signals predictions that are too extreme (overfitting), &gt; 1 too timid. The <strong>intercept</strong> shows systematic over- or under-prediction.</li>
+<li>Compare models with <strong>proper scoring rules</strong> (log loss, Brier), and use the <strong>Murphy decomposition</strong> to see whether a difference comes from discrimination or calibration.</li>
+<li>Check calibration <strong>within segments</strong> (A/E ratios). Overall calibration can hide large errors in the groups that matter.</li>
+</ul>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Calibration and proper scoring rules"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Do predicted probabilities match observed frequencies? Reliability diagrams, calibration slope, Brier score, log loss and the Murphy decomposition."</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.special <span class="im">import</span> expit, logit</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.data <span class="im">import</span> train_test</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.metrics <span class="im">import</span> (</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    auc_rank,</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    calibration_intercept_slope,</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    expected_calibration_error,</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    murphy_decomposition,</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.models <span class="im">import</span> binary_predictions</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> modelperf.plots <span class="im">import</span> plot_reliability, use_style</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>use_style()</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> binary_predictions()</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> b[<span class="st">"y"</span>]</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>rate <span class="op">=</span> y.mean()</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>**Question answered:** when the model says 10%, does the event happen about</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>10% of the time?</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">ROC page</span><span class="co">](roc-auc.qmd)</span> ended with a warning: AUC only measures</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>*ranking*. A model can rank perfectly and still predict probabilities that are</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>far off. Whenever the probabilities themselves are used, for a premium, an</span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>expected cost, a capital estimate or the</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">cost-based threshold</span><span class="co">](confusion-matrix.qmd#choosing-a-threshold)</span>, they must</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>also be **calibrated**.</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a><span class="fu">## What calibration means</span></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>A model is calibrated if, among all cases that receive prediction $\hat p$,</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>the event happens with frequency $\hat p$:</span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>P(Y = 1 \mid \hat p = p) = p \quad \text{for all } p.</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a>Calibration and discrimination are separate properties:</span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Always predicting the overall claim rate (the Null model) is **perfectly</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>  calibrated but has no discrimination**.</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dividing every GBM prediction by 10 keeps the **discrimination but ruins</span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>  calibration**.</span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>A good model needs both.</span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Calibration in the large</span></span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>The simplest check: is the average prediction equal to the observed rate?</span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-in-the-large</span></span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Average predicted probability and observed claim rate on the test set."</span></span>
+<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Average prediction"</span>: {m: b[m].mean() <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Observed rate"</span>: {m: rate <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)},</span>
+<span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>}).<span class="bu">round</span>(<span class="dv">4</span>)</span>
+<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a>All three are close to the observed <span class="in">`{python} f"{rate:.2%}"`</span>. This check is</span>
+<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a>necessary but far from sufficient: a model can be right on average while too</span>
+<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>high for low risks and too low for high risks, and these errors cancel out.</span>
+<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a><span class="fu">## Reliability diagrams</span></span>
+<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>A **reliability diagram** plots the observed rate against the predicted</span>
+<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>probability. A calibrated model follows the diagonal. Points above the diagonal</span>
+<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>mean the model predicts **too low** there, points below mean **too high**.</span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a><span class="fu">### The classic version: binning</span></span>
+<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a>The usual recipe sorts the cases by prediction, splits them into bins (here 20</span>
+<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a>bins with equal numbers of policies), and plots each bin's average prediction</span>
+<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a>against its observed claim rate:</span>
+<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-reliability-bins</span></span>
+<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Binned reliability diagrams: 20 bins of equal size, with 95% confidence intervals for the observed rate."</span></span>
+<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="fl">9.5</span>, <span class="fl">4.5</span>))</span>
+<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)):</span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {m: b[m]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"bins"</span>, title<span class="op">=</span>m)</span>
+<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a>Both models stay close to the diagonal over most of the range. Most policies</span>
+<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a>have a predicted probability below 10%, so the bins are packed there and</span>
+<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>sparse above. The few high-risk bins carry wide confidence intervals.</span>
+<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a><span class="fu">### The problem with bins</span></span>
+<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>The picture depends on how the bins are chosen, and there's no right choice.</span>
+<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>The same GBM with different binnings:</span>
+<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-binning</span></span>
+<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "The GBM's reliability diagram under three binning choices."</span></span>
+<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.2</span>))</span>
+<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, (n, strategy) <span class="kw">in</span> <span class="bu">zip</span>(axes, [(<span class="dv">10</span>, <span class="st">"uniform"</span>), (<span class="dv">10</span>, <span class="st">"quantile"</span>), (<span class="dv">100</span>, <span class="st">"quantile"</span>)]):</span>
+<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {<span class="st">"GBM"</span>: b[<span class="st">"GBM"</span>]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"bins"</span>, n_bins<span class="op">=</span>n, strategy<span class="op">=</span>strategy,</span>
+<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a>                     max_p<span class="op">=</span><span class="fl">0.35</span>, title<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'equal-width'</span> <span class="cf">if</span> strategy <span class="op">==</span> <span class="st">'uniform'</span> <span class="cf">else</span> <span class="st">'equal-count'</span><span class="sc">}</span><span class="ss"> bins"</span>)</span>
+<span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a>    ax.get_legend().remove()</span>
+<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>Equal-width bins put nearly all policies in the first two bins and leave the</span>
+<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a>rest nearly empty. Few equal-count bins hide any detail at the high end. Many</span>
+<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a>bins turn the diagram into noise. Summary statistics built on bins inherit the</span>
+<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a>problem. The **expected calibration error** (ECE), the share-weighted average</span>
+<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a>gap between bin prediction and bin rate, changes with the binning:</span>
+<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-ece</span></span>
+<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Expected calibration error of the same predictions under different binnings."</span></span>
+<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>settings <span class="op">=</span> [(<span class="dv">10</span>, <span class="st">"uniform"</span>), (<span class="dv">20</span>, <span class="st">"uniform"</span>), (<span class="dv">5</span>, <span class="st">"quantile"</span>), (<span class="dv">10</span>, <span class="st">"quantile"</span>), (<span class="dv">20</span>, <span class="st">"quantile"</span>), (<span class="dv">100</span>, <span class="st">"quantile"</span>)]</span>
+<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'equal-width'</span> <span class="cf">if</span> s <span class="op">==</span> <span class="st">'uniform'</span> <span class="cf">else</span> <span class="st">'equal-count'</span><span class="sc">}</span><span class="ss">"</span>: {</span>
+<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>        m: expected_calibration_error(y, b[m], n, s) <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)</span>
+<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n, s <span class="kw">in</span> settings</span>
+<span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">5</span>)</span>
+<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a>ece <span class="op">=</span> {n: expected_calibration_error(y, b[<span class="st">"GBM"</span>], n, <span class="st">"quantile"</span>) <span class="cf">for</span> n <span class="kw">in</span> (<span class="dv">5</span>, <span class="dv">100</span>)}</span>
+<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a>With 100 bins, the GBM's ECE is <span class="in">`{python} f"{ece[100] / ece[5]:.0f}"`</span> times</span>
+<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a>larger than with 5 bins. That's not because the model got worse: smaller bins</span>
+<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a>simply contain more sampling noise. ECE values are only comparable at the</span>
+<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a>same binning, and even then mostly measure noise when bins are small.</span>
+<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a><span class="fu">### The modern version: CORP</span></span>
+<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a>The **CORP** approach (consistent, optimally binned, reproducible;</span>
+<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a>Dimitriadis, Gneiting and Jordan, 2021) replaces hand-chosen bins with</span>
+<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a>**isotonic regression**. It finds the best *non-decreasing* step function</span>
+<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a>mapping predictions to observed outcomes, using the pool-adjacent-violators</span>
+<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a>(PAV) algorithm. In effect, the data chooses the bins: adjacent predictions</span>
+<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a>are merged exactly where their outcomes don't support a higher rate.</span>
+<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**No tuning:** no bin count or bin edges to choose, so the result is</span>
+<span id="cb11-165"><a href="#cb11-165" aria-hidden="true" tabindex="-1"></a>  reproducible.</span>
+<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Consistent:** with more data, the curve converges to the true calibration</span>
+<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a>  curve.</span>
+<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Uncertainty built in:** simulating outcomes *from the model's own</span>
+<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a>  probabilities* shows how much a perfectly calibrated model's curve wobbles by</span>
+<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a>  chance. The 90% range of these simulations is the **consistency band**.</span>
+<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a>  Where the observed curve leaves the band, the miscalibration is real.</span>
+<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-corp</span></span>
+<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "CORP reliability diagrams with 90% consistency bands (200 simulations each)."</span></span>
+<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="fl">9.5</span>, <span class="fl">4.5</span>))</span>
+<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, m <span class="kw">in</span> <span class="bu">zip</span>(axes, (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)):</span>
+<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {m: b[m]}, ax<span class="op">=</span>ax, method<span class="op">=</span><span class="st">"corp"</span>, band<span class="op">=</span><span class="va">True</span>, title<span class="op">=</span>m)</span>
+<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-183"><a href="#cb11-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-184"><a href="#cb11-184" aria-hidden="true" tabindex="-1"></a>Both curves follow the diagonal closely where most policies are, below about</span>
+<span id="cb11-185"><a href="#cb11-185" aria-hidden="true" tabindex="-1"></a>6%. Above that, both tend to run above the diagonal, and the GLM's curve leaves</span>
+<span id="cb11-186"><a href="#cb11-186" aria-hidden="true" tabindex="-1"></a>its band several times. Both models under-predict their highest risks, the</span>
+<span id="cb11-187"><a href="#cb11-187" aria-hidden="true" tabindex="-1"></a>GLM more clearly. The <span class="co">[</span><span class="ot">segment analysis</span><span class="co">](#calibration-within-segments)</span> below</span>
+<span id="cb11-188"><a href="#cb11-188" aria-hidden="true" tabindex="-1"></a>shows where this comes from. In practice, the CORP diagram should be the</span>
+<span id="cb11-189"><a href="#cb11-189" aria-hidden="true" tabindex="-1"></a>default, and binned diagrams kept for audiences used to them.</span>
+<span id="cb11-190"><a href="#cb11-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-191"><a href="#cb11-191" aria-hidden="true" tabindex="-1"></a><span class="fu">## Calibration intercept and slope</span></span>
+<span id="cb11-192"><a href="#cb11-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-193"><a href="#cb11-193" aria-hidden="true" tabindex="-1"></a>Two numbers summarize the most common patterns of miscalibration. Fit a</span>
+<span id="cb11-194"><a href="#cb11-194" aria-hidden="true" tabindex="-1"></a>logistic regression of the outcome on the model's logit,</span>
+<span id="cb11-195"><a href="#cb11-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-196"><a href="#cb11-196" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-197"><a href="#cb11-197" aria-hidden="true" tabindex="-1"></a>\operatorname{logit} P(Y = 1) = a + b \cdot \operatorname{logit}(\hat p),</span>
+<span id="cb11-198"><a href="#cb11-198" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-199"><a href="#cb11-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-200"><a href="#cb11-200" aria-hidden="true" tabindex="-1"></a>and read off:</span>
+<span id="cb11-201"><a href="#cb11-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-202"><a href="#cb11-202" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Statistic <span class="pp">|</span> Ideal <span class="pp">|</span> Meaning when off <span class="pp">|</span></span>
+<span id="cb11-203"><a href="#cb11-203" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb11-204"><a href="#cb11-204" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Calibration intercept** $a$ (with $b$ fixed at 1) <span class="pp">|</span> 0 <span class="pp">|</span> &gt; 0: predictions too low on average; &lt; 0: too high <span class="pp">|</span></span>
+<span id="cb11-205"><a href="#cb11-205" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Calibration slope** $b$ | 1 | &lt; 1: predictions **too extreme** (too spread out, typical of overfitting); &gt; 1: **too timid** (not spread out enough, typical of over-regularization) <span class="pp">|</span></span>
+<span id="cb11-206"><a href="#cb11-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-207"><a href="#cb11-207" aria-hidden="true" tabindex="-1"></a>To see these patterns, we distort the GBM's predictions in three ways:</span>
+<span id="cb11-208"><a href="#cb11-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-211"><a href="#cb11-211" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-212"><a href="#cb11-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb11-213"><a href="#cb11-213" aria-hidden="true" tabindex="-1"></a>center <span class="op">=</span> logit(rate)</span>
+<span id="cb11-214"><a href="#cb11-214" aria-hidden="true" tabindex="-1"></a>variants <span class="op">=</span> {</span>
+<span id="cb11-215"><a href="#cb11-215" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBM"</span>: b[<span class="st">"GBM"</span>],</span>
+<span id="cb11-216"><a href="#cb11-216" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too low (× 0.6)"</span>: <span class="fl">0.6</span> <span class="op">*</span> b[<span class="st">"GBM"</span>],</span>
+<span id="cb11-217"><a href="#cb11-217" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too extreme"</span>: expit(center <span class="op">+</span> <span class="fl">1.6</span> <span class="op">*</span> (logit(b[<span class="st">"GBM"</span>]) <span class="op">-</span> center)),</span>
+<span id="cb11-218"><a href="#cb11-218" aria-hidden="true" tabindex="-1"></a>    <span class="st">"too timid"</span>: expit(center <span class="op">+</span> <span class="fl">0.6</span> <span class="op">*</span> (logit(b[<span class="st">"GBM"</span>]) <span class="op">-</span> center)),</span>
+<span id="cb11-219"><a href="#cb11-219" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-220"><a href="#cb11-220" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-221"><a href="#cb11-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-224"><a href="#cb11-224" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-225"><a href="#cb11-225" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fig-patterns</span></span>
+<span id="cb11-226"><a href="#cb11-226" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "CORP reliability curves of three distorted versions of the GBM."</span></span>
+<span id="cb11-227"><a href="#cb11-227" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.2</span>))</span>
+<span id="cb11-228"><a href="#cb11-228" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, name <span class="kw">in</span> <span class="bu">zip</span>(axes, <span class="bu">list</span>(variants)[<span class="dv">1</span>:]):</span>
+<span id="cb11-229"><a href="#cb11-229" aria-hidden="true" tabindex="-1"></a>    plot_reliability(y, {name: variants[name]}, ax<span class="op">=</span>ax, max_p<span class="op">=</span><span class="fl">0.25</span>, title<span class="op">=</span>name,</span>
+<span id="cb11-230"><a href="#cb11-230" aria-hidden="true" tabindex="-1"></a>                     colors<span class="op">=</span>{name: <span class="st">"#eb6834"</span>})</span>
+<span id="cb11-231"><a href="#cb11-231" aria-hidden="true" tabindex="-1"></a>    ax.get_legend().remove()</span>
+<span id="cb11-232"><a href="#cb11-232" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb11-233"><a href="#cb11-233" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-234"><a href="#cb11-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-237"><a href="#cb11-237" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-238"><a href="#cb11-238" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-slope</span></span>
+<span id="cb11-239"><a href="#cb11-239" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Calibration intercept, slope and AUC of the models and the distorted variants."</span></span>
+<span id="cb11-240"><a href="#cb11-240" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"GLM"</span>, <span class="st">"GBM"</span>)} <span class="op">|</span> {k: v <span class="cf">for</span> k, v <span class="kw">in</span> variants.items() <span class="cf">if</span> k <span class="op">!=</span> <span class="st">"GBM"</span>}</span>
+<span id="cb11-241"><a href="#cb11-241" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb11-242"><a href="#cb11-242" aria-hidden="true" tabindex="-1"></a>    k: pd.concat([calibration_intercept_slope(y, v), pd.Series({<span class="st">"AUC"</span>: auc_rank(y, v)})])</span>
+<span id="cb11-243"><a href="#cb11-243" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> k, v <span class="kw">in</span> rows.items()</span>
+<span id="cb11-244"><a href="#cb11-244" aria-hidden="true" tabindex="-1"></a>}).T.<span class="bu">round</span>(<span class="dv">3</span>)</span>
+<span id="cb11-245"><a href="#cb11-245" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-246"><a href="#cb11-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-247"><a href="#cb11-247" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **GLM and GBM** have intercepts near 0 and slopes near 1: well</span>
+<span id="cb11-248"><a href="#cb11-248" aria-hidden="true" tabindex="-1"></a>  calibrated overall.</span>
+<span id="cb11-249"><a href="#cb11-249" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Too low** shows a positive intercept: the curve runs above the diagonal</span>
+<span id="cb11-250"><a href="#cb11-250" aria-hidden="true" tabindex="-1"></a>  everywhere.</span>
+<span id="cb11-251"><a href="#cb11-251" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Too extreme** has a slope below 1: low risks predicted too low, high risks</span>
+<span id="cb11-252"><a href="#cb11-252" aria-hidden="true" tabindex="-1"></a>  too high. The curve is flatter than the diagonal. This is what an overfitted</span>
+<span id="cb11-253"><a href="#cb11-253" aria-hidden="true" tabindex="-1"></a>  model looks like on new data.</span>
+<span id="cb11-254"><a href="#cb11-254" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Too timid** has a slope above 1: the curve is steeper than the diagonal.</span>
+<span id="cb11-255"><a href="#cb11-255" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **AUC is identical** for all GBM variants. None of these problems</span>
+<span id="cb11-256"><a href="#cb11-256" aria-hidden="true" tabindex="-1"></a>  is visible in ranking metrics.</span>
+<span id="cb11-257"><a href="#cb11-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-258"><a href="#cb11-258" aria-hidden="true" tabindex="-1"></a><span class="fu">## Proper scoring rules</span></span>
+<span id="cb11-259"><a href="#cb11-259" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-260"><a href="#cb11-260" aria-hidden="true" tabindex="-1"></a>Calibration plots diagnose. To *compare* models with a single number that</span>
+<span id="cb11-261"><a href="#cb11-261" aria-hidden="true" tabindex="-1"></a>rewards both calibration and discrimination, use a **proper scoring rule**.</span>
+<span id="cb11-262"><a href="#cb11-262" aria-hidden="true" tabindex="-1"></a>It's a score whose expected value is best when the predicted probability</span>
+<span id="cb11-263"><a href="#cb11-263" aria-hidden="true" tabindex="-1"></a>equals the true probability, so no forecaster can improve their expected score</span>
+<span id="cb11-264"><a href="#cb11-264" aria-hidden="true" tabindex="-1"></a>by reporting anything other than what they believe. The two standard ones,</span>
+<span id="cb11-265"><a href="#cb11-265" aria-hidden="true" tabindex="-1"></a>lower is better for both:</span>
+<span id="cb11-266"><a href="#cb11-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-267"><a href="#cb11-267" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-268"><a href="#cb11-268" aria-hidden="true" tabindex="-1"></a>\text{Brier score} = \frac{1}{n}\sum_{i} (\hat p_i - y_i)^2,</span>
+<span id="cb11-269"><a href="#cb11-269" aria-hidden="true" tabindex="-1"></a>\qquad</span>
+<span id="cb11-270"><a href="#cb11-270" aria-hidden="true" tabindex="-1"></a>\text{log loss} = -\frac{1}{n}\sum_{i} \big<span class="co">[</span><span class="ot"> y_i \log \hat p_i + (1 - y_i)\log(1 - \hat p_i) \big</span><span class="co">]</span>.</span>
+<span id="cb11-271"><a href="#cb11-271" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-272"><a href="#cb11-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-273"><a href="#cb11-273" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Brier score**: squared error on probabilities. It's bounded and robust,</span>
+<span id="cb11-274"><a href="#cb11-274" aria-hidden="true" tabindex="-1"></a>  but small differences are hard to see when events are rare.</span>
+<span id="cb11-275"><a href="#cb11-275" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Log loss**: the negative log-likelihood, and exactly what logistic</span>
+<span id="cb11-276"><a href="#cb11-276" aria-hidden="true" tabindex="-1"></a>  regression and the GBM were trained on. It punishes confident wrong</span>
+<span id="cb11-277"><a href="#cb11-277" aria-hidden="true" tabindex="-1"></a>  predictions without limit: predicting 0.1% for a policy that does have a</span>
+<span id="cb11-278"><a href="#cb11-278" aria-hidden="true" tabindex="-1"></a>  claim costs far more than predicting 10% for one that doesn't.</span>
+<span id="cb11-279"><a href="#cb11-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-280"><a href="#cb11-280" aria-hidden="true" tabindex="-1"></a>Accuracy, F1 and AUC are **not** proper scoring rules. Accuracy and F1 only see</span>
+<span id="cb11-281"><a href="#cb11-281" aria-hidden="true" tabindex="-1"></a>which side of a threshold a prediction falls on, and AUC only sees ranking. A</span>
+<span id="cb11-282"><a href="#cb11-282" aria-hidden="true" tabindex="-1"></a>model can improve on them while its probabilities get worse.</span>
+<span id="cb11-283"><a href="#cb11-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-284"><a href="#cb11-284" aria-hidden="true" tabindex="-1"></a><span class="fu">### The Murphy decomposition</span></span>
+<span id="cb11-285"><a href="#cb11-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-286"><a href="#cb11-286" aria-hidden="true" tabindex="-1"></a>A raw score is hard to interpret on its own. The CORP decomposition splits any</span>
+<span id="cb11-287"><a href="#cb11-287" aria-hidden="true" tabindex="-1"></a>proper score exactly into three parts:</span>
+<span id="cb11-288"><a href="#cb11-288" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-289"><a href="#cb11-289" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-290"><a href="#cb11-290" aria-hidden="true" tabindex="-1"></a>\text{score} = \underbrace{\text{MCB}}_{\text{miscalibration}} - \underbrace{\text{DSC}}_{\text{discrimination}} + \underbrace{\text{UNC}}_{\text{uncertainty}}.</span>
+<span id="cb11-291"><a href="#cb11-291" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-292"><a href="#cb11-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-293"><a href="#cb11-293" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**UNC**: the score of the Null model, i.e. how hard the problem is. It's the</span>
+<span id="cb11-294"><a href="#cb11-294" aria-hidden="true" tabindex="-1"></a>  same for every model on the same data.</span>
+<span id="cb11-295"><a href="#cb11-295" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**DSC**: how much the score improves when the predictions are optimally</span>
+<span id="cb11-296"><a href="#cb11-296" aria-hidden="true" tabindex="-1"></a>  recalibrated (isotonic regression), compared with the Null model. It</span>
+<span id="cb11-297"><a href="#cb11-297" aria-hidden="true" tabindex="-1"></a>  depends only on the *ranking*, like AUC. Higher is better.</span>
+<span id="cb11-298"><a href="#cb11-298" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**MCB**: how much worse the actual predictions score than their</span>
+<span id="cb11-299"><a href="#cb11-299" aria-hidden="true" tabindex="-1"></a>  recalibrated version: the price paid for miscalibration. Lower is better.</span>
+<span id="cb11-300"><a href="#cb11-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-303"><a href="#cb11-303" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-304"><a href="#cb11-304" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-murphy</span></span>
+<span id="cb11-305"><a href="#cb11-305" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Murphy decomposition of the log loss. The two last rows are the order-preserving transformations from the ROC page."</span></span>
+<span id="cb11-306"><a href="#cb11-306" aria-hidden="true" tabindex="-1"></a>cases <span class="op">=</span> {m: b[m] <span class="cf">for</span> m <span class="kw">in</span> (<span class="st">"Null"</span>, <span class="st">"GLM"</span>, <span class="st">"GBM"</span>)} <span class="op">|</span> {<span class="st">"GBM / 10"</span>: b[<span class="st">"GBM"</span>] <span class="op">/</span> <span class="dv">10</span>, <span class="st">"GBM ^ 0.2"</span>: b[<span class="st">"GBM"</span>] <span class="op">**</span> <span class="fl">0.2</span>}</span>
+<span id="cb11-307"><a href="#cb11-307" aria-hidden="true" tabindex="-1"></a>murphy <span class="op">=</span> pd.DataFrame({k: murphy_decomposition(y, v, <span class="st">"log loss"</span>) <span class="cf">for</span> k, v <span class="kw">in</span> cases.items()}).T</span>
+<span id="cb11-308"><a href="#cb11-308" aria-hidden="true" tabindex="-1"></a>murphy.<span class="bu">round</span>(<span class="dv">5</span>)</span>
+<span id="cb11-309"><a href="#cb11-309" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-310"><a href="#cb11-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-313"><a href="#cb11-313" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-314"><a href="#cb11-314" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb11-315"><a href="#cb11-315" aria-hidden="true" tabindex="-1"></a>gbm_glm_dsc <span class="op">=</span> murphy.loc[<span class="st">"GBM"</span>, <span class="st">"DSC"</span>] <span class="op">/</span> murphy.loc[<span class="st">"GLM"</span>, <span class="st">"DSC"</span>] <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb11-316"><a href="#cb11-316" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-317"><a href="#cb11-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-318"><a href="#cb11-318" aria-hidden="true" tabindex="-1"></a>The table answers *why* one model scores better than another:</span>
+<span id="cb11-319"><a href="#cb11-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-320"><a href="#cb11-320" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **GBM beats the GLM through discrimination**: its DSC is</span>
+<span id="cb11-321"><a href="#cb11-321" aria-hidden="true" tabindex="-1"></a>  <span class="in">`{python} f"{gbm_glm_dsc:.0%}"`</span> higher, while both have very small MCB.</span>
+<span id="cb11-322"><a href="#cb11-322" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The two transformed GBMs have **exactly the GBM's DSC**: they rank the same.</span>
+<span id="cb11-323"><a href="#cb11-323" aria-hidden="true" tabindex="-1"></a>  All their extra loss is miscalibration.</span>
+<span id="cb11-324"><a href="#cb11-324" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The **Null model** has DSC 0 and MCB 0: calibrated, but no discrimination.</span>
+<span id="cb11-325"><a href="#cb11-325" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-326"><a href="#cb11-326" aria-hidden="true" tabindex="-1"></a>The same table for the Brier score (try <span class="in">`murphy_decomposition(y, p, "Brier")`</span>)</span>
+<span id="cb11-327"><a href="#cb11-327" aria-hidden="true" tabindex="-1"></a>tells the same story. Use the decomposition whenever two models are</span>
+<span id="cb11-328"><a href="#cb11-328" aria-hidden="true" tabindex="-1"></a>compared on a scoring rule: it separates 'ranks better' from 'is better</span>
+<span id="cb11-329"><a href="#cb11-329" aria-hidden="true" tabindex="-1"></a>calibrated'.</span>
+<span id="cb11-330"><a href="#cb11-330" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-331"><a href="#cb11-331" aria-hidden="true" tabindex="-1"></a><span class="fu">## Calibration within segments</span></span>
+<span id="cb11-332"><a href="#cb11-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-333"><a href="#cb11-333" aria-hidden="true" tabindex="-1"></a>Overall calibration can hide miscalibration in subgroups, and subgroups are</span>
+<span id="cb11-334"><a href="#cb11-334" aria-hidden="true" tabindex="-1"></a>often what matters, such as tariff cells, customer segments or regions.</span>
+<span id="cb11-335"><a href="#cb11-335" aria-hidden="true" tabindex="-1"></a>Insurers check this with the **actual-to-expected (A/E) ratio**: observed</span>
+<span id="cb11-336"><a href="#cb11-336" aria-hidden="true" tabindex="-1"></a>claims divided by predicted claims, per segment. A/E above 1 means the model</span>
+<span id="cb11-337"><a href="#cb11-337" aria-hidden="true" tabindex="-1"></a>predicts too low for that segment.</span>
+<span id="cb11-338"><a href="#cb11-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-341"><a href="#cb11-341" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-342"><a href="#cb11-342" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: tbl-segments</span></span>
+<span id="cb11-343"><a href="#cb11-343" aria-hidden="true" tabindex="-1"></a><span class="co">#| tbl-cap: "Actual-to-expected ratio by bonus-malus level (test set)."</span></span>
+<span id="cb11-344"><a href="#cb11-344" aria-hidden="true" tabindex="-1"></a>test <span class="op">=</span> train_test().test</span>
+<span id="cb11-345"><a href="#cb11-345" aria-hidden="true" tabindex="-1"></a>segment <span class="op">=</span> pd.cut(test[<span class="st">"BonusMalus"</span>], [<span class="dv">0</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">80</span>, <span class="dv">100</span>, <span class="dv">250</span>],</span>
+<span id="cb11-346"><a href="#cb11-346" aria-hidden="true" tabindex="-1"></a>                 labels<span class="op">=</span>[<span class="st">"50 (best)"</span>, <span class="st">"51–60"</span>, <span class="st">"61–80"</span>, <span class="st">"81–100"</span>, <span class="st">"&gt; 100 (malus)"</span>])</span>
+<span id="cb11-347"><a href="#cb11-347" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> b.assign(segment<span class="op">=</span>segment.to_numpy())</span>
+<span id="cb11-348"><a href="#cb11-348" aria-hidden="true" tabindex="-1"></a>grouped <span class="op">=</span> df.groupby(<span class="st">"segment"</span>, observed<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb11-349"><a href="#cb11-349" aria-hidden="true" tabindex="-1"></a>ae <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb11-350"><a href="#cb11-350" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Policies"</span>: grouped.size(),</span>
+<span id="cb11-351"><a href="#cb11-351" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Observed rate"</span>: grouped[<span class="st">"y"</span>].mean(),</span>
+<span id="cb11-352"><a href="#cb11-352" aria-hidden="true" tabindex="-1"></a>    <span class="st">"A/E GLM"</span>: grouped[<span class="st">"y"</span>].<span class="bu">sum</span>() <span class="op">/</span> grouped[<span class="st">"GLM"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb11-353"><a href="#cb11-353" aria-hidden="true" tabindex="-1"></a>    <span class="st">"A/E GBM"</span>: grouped[<span class="st">"y"</span>].<span class="bu">sum</span>() <span class="op">/</span> grouped[<span class="st">"GBM"</span>].<span class="bu">sum</span>(),</span>
+<span id="cb11-354"><a href="#cb11-354" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb11-355"><a href="#cb11-355" aria-hidden="true" tabindex="-1"></a>ae.<span class="bu">round</span>(<span class="dv">3</span>)</span>
+<span id="cb11-356"><a href="#cb11-356" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-357"><a href="#cb11-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-360"><a href="#cb11-360" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb11-361"><a href="#cb11-361" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb11-362"><a href="#cb11-362" aria-hidden="true" tabindex="-1"></a>ae_malus <span class="op">=</span> ae.loc[<span class="st">"&gt; 100 (malus)"</span>]</span>
+<span id="cb11-363"><a href="#cb11-363" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-364"><a href="#cb11-364" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-365"><a href="#cb11-365" aria-hidden="true" tabindex="-1"></a>The GLM is calibrated overall but not across bonus-malus levels: its A/E</span>
+<span id="cb11-366"><a href="#cb11-366" aria-hidden="true" tabindex="-1"></a>ratios range from <span class="in">`{python} f"{ae['A/E GLM'].min():.2f}"`</span> to</span>
+<span id="cb11-367"><a href="#cb11-367" aria-hidden="true" tabindex="-1"></a><span class="in">`{python} f"{ae['A/E GLM'].max():.2f}"`</span>. For policyholders with a malus, it</span>
+<span id="cb11-368"><a href="#cb11-368" aria-hidden="true" tabindex="-1"></a>predicts <span class="in">`{python} f"{ae_malus['A/E GLM'] - 1:.0%}"`</span> fewer claims than</span>
+<span id="cb11-369"><a href="#cb11-369" aria-hidden="true" tabindex="-1"></a>actually occur, while in the 81–100 band it predicts too many. The errors</span>
+<span id="cb11-370"><a href="#cb11-370" aria-hidden="true" tabindex="-1"></a>cancel out in the overall average. The GLM uses a single log-linear effect for</span>
+<span id="cb11-371"><a href="#cb11-371" aria-hidden="true" tabindex="-1"></a>bonus-malus, which is too rigid for the real relationship. The GBM stays</span>
+<span id="cb11-372"><a href="#cb11-372" aria-hidden="true" tabindex="-1"></a>within a few percent in every segment. A table like this points directly to</span>
+<span id="cb11-373"><a href="#cb11-373" aria-hidden="true" tabindex="-1"></a>the feature that needs a better specification.</span>
+<span id="cb11-374"><a href="#cb11-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-375"><a href="#cb11-375" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip}</span>
+<span id="cb11-376"><a href="#cb11-376" aria-hidden="true" tabindex="-1"></a><span class="fu">## Fixing miscalibration</span></span>
+<span id="cb11-377"><a href="#cb11-377" aria-hidden="true" tabindex="-1"></a>If ranking is good but probabilities are off, a model can be **recalibrated**</span>
+<span id="cb11-378"><a href="#cb11-378" aria-hidden="true" tabindex="-1"></a>by mapping its predictions through a fitted function:</span>
+<span id="cb11-379"><a href="#cb11-379" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-380"><a href="#cb11-380" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Platt scaling** (logistic): fit the intercept and slope above, apply them.</span>
+<span id="cb11-381"><a href="#cb11-381" aria-hidden="true" tabindex="-1"></a>  Few parameters, robust, fixes the common patterns.</span>
+<span id="cb11-382"><a href="#cb11-382" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Isotonic regression**: the CORP curve itself. Flexible, but needs plenty</span>
+<span id="cb11-383"><a href="#cb11-383" aria-hidden="true" tabindex="-1"></a>  of data and produces step-shaped probabilities.</span>
+<span id="cb11-384"><a href="#cb11-384" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-385"><a href="#cb11-385" aria-hidden="true" tabindex="-1"></a>Fit the recalibration on data that wasn't used to train the model, and</span>
+<span id="cb11-386"><a href="#cb11-386" aria-hidden="true" tabindex="-1"></a>evaluate on yet another set (scikit-learn: <span class="in">`CalibratedClassifierCV`</span>). A</span>
+<span id="cb11-387"><a href="#cb11-387" aria-hidden="true" tabindex="-1"></a>monotone recalibration leaves the ranking, and therefore AUC and DSC,</span>
+<span id="cb11-388"><a href="#cb11-388" aria-hidden="true" tabindex="-1"></a>essentially unchanged. It only removes MCB.</span>
+<span id="cb11-389"><a href="#cb11-389" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb11-390"><a href="#cb11-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-391"><a href="#cb11-391" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
+<span id="cb11-392"><a href="#cb11-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-393"><a href="#cb11-393" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Calibration** asks whether predicted probabilities match observed</span>
+<span id="cb11-394"><a href="#cb11-394" aria-hidden="true" tabindex="-1"></a>  frequencies. It's separate from discrimination, and AUC can't see it.</span>
+<span id="cb11-395"><a href="#cb11-395" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Prefer **CORP reliability diagrams** with consistency bands over binned</span>
+<span id="cb11-396"><a href="#cb11-396" aria-hidden="true" tabindex="-1"></a>  diagrams. Bins and the ECE depend on arbitrary choices.</span>
+<span id="cb11-397"><a href="#cb11-397" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Calibration slope** &lt; 1 signals predictions that are too extreme</span>
+<span id="cb11-398"><a href="#cb11-398" aria-hidden="true" tabindex="-1"></a>  (overfitting), &gt; 1 too timid. The **intercept** shows systematic over- or</span>
+<span id="cb11-399"><a href="#cb11-399" aria-hidden="true" tabindex="-1"></a>  under-prediction.</span>
+<span id="cb11-400"><a href="#cb11-400" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Compare models with **proper scoring rules** (log loss, Brier), and use the</span>
+<span id="cb11-401"><a href="#cb11-401" aria-hidden="true" tabindex="-1"></a>  **Murphy decomposition** to see whether a difference comes from</span>
+<span id="cb11-402"><a href="#cb11-402" aria-hidden="true" tabindex="-1"></a>  discrimination or calibration.</span>
+<span id="cb11-403"><a href="#cb11-403" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Check calibration **within segments** (A/E ratios). Overall calibration can</span>
+<span id="cb11-404"><a href="#cb11-404" aria-hidden="true" tabindex="-1"></a>  hide large errors in the groups that matter.</span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
